@@ -1,15 +1,19 @@
 {
   "name": "pecomp",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "PE decomposer/composer",
   "main": "pecomp.js",
   "scripts": {
-    "test": "node pecomp.js",
+    "test": "node test/index.js",
     "start": "node -r ./pecomp.js"
   },
   "keywords": [
     "PE"
   ],
-  "author": "V.H.",
-  "license": "ISC"
+  "author": "V.H. <alternativexxxy@gmail.com>",
+  "license": "ISC",
+  "bin": {},
+  "engines": {
+    "node": ">=10"
+  }
 }

@@ -59,34 +59,39 @@ class PEC {
 		assert(this.stub, "Stub needs to be created first, load a file.");
 		
 		if (this.innerbuf.length < 20) return "Binary does not have valid length\n";
-		if (this.stub.isimg && this.innerbuf.length < 148) return "Binary(Img) does not have valid length\n";
+		if (this.stub.isimg && this.innerbuf.length < 148) return "Binary (Img) does not have valid length\n";
 		if (this.stub.isopt == 0x10b && this.stub.optionalsize.readUInt16LE() < 96)
-			retstr += "OPT size broken\n";
+			retstr += "OPT size (optionalsize) broken\n";
 		if (this.stub.isopt == 0x20b && this.stub.optionalsize.readUInt16LE() < 112)
-			retstr += "OPT+ size broken\n";
+			retstr += "OPT+ size (optionalsize) broken\n";
 		if (this.stub.isimg && this.stub.sig.toString("binary") != "PE\u0000\u0000")
-			retstr += "PE signature broken\n";
+			retstr += "PE signature (sig) broken\n";
 		if (!(this.stub.isopt == 0x10b || this.stub.isopt == 0x20b))
 			retstr += "OPT signature broken\n";
 		if (this.stub.isimg && this.stub.e_res.toString("binary") != "\u0000".repeat(8))
-			retstr += "PE Reserved Space #1 should be all-zero-filled\n";
+			retstr += "PE Reserved Space #1 (e_res) should be all-zero-filled\n";
 		if (this.stub.isimg && this.stub.e_res2.toString("binary") != "\u0000".repeat(20))
-			retstr += "PE Reserved Space #2 should be all-zero-filled\n";
-		if (this.isimg && (this.stub.symtabptr.readUInt16LE() || this.stub.symbnum.readUInt16LE()))
-		retstr += "Debug COFF symbol table deprecated on images\n";
-		if (!this.stub.isimg && this.stub.optionalsize.readUInt16LE()) retstr += "Optional header invalid on object files\n";
+			retstr += "PE Reserved Space #2 (e_res2) should be all-zero-filled\n";
+		if (this.stub.isimg && (this.stub.symtabptr.readUInt16LE() || this.stub.symbnum.readUInt16LE()))
+			retstr += "Debug COFF symbol table (symtabptr/symbnum) deprecated on images\n";
+		if (this.stub.isimg && this.stub.o_imbase.readUInt32LE() % (64 * 1024))
+			retstr += "Image Base (o_imbase) must be multiple of 64KB\n";
+		if (this.stub.isimg && !this.stub.o_filealign.unalloc && (this.stub.o_filealign.readUInt32LE() < 0x200 || this.stub.o_filealign.readUInt32LE() > 64 * 1024))
+			retstr += "File Alignment must be between 512 and 64KB (and if section alignment is less than arch's page size, must be equal to it)\n";
+		if (!this.stub.isimg && this.stub.optionalsize.readUInt16LE())
+			retstr += "Optional header (optionalsize != 0) invalid on object files\n";
 		if (this.stub.sectnum.readUInt16LE() < 2) retstr += "Sections must be at least 2\n";
 		if (this.stub.sectnum.readUInt16LE() > 96) retstr += "Sections must be at most 96\n";
 		if ((this.stub.chrctrs.readUInt16LE() & PEC.MSDStub.Characteristics.LINE_NUMS_STRIPPED) == PEC.MSDStub.Characteristics.LINE_NUMS_STRIPPED)
-			retstr += "The LINE_NUMS_STRIPPED Characteristic is deprecated\n";
+			retstr += "The LINE_NUMS_STRIPPED Characteristic (chrctrs) is deprecated\n";
 		if ((this.stub.chrctrs.readUInt16LE() & PEC.MSDStub.Characteristics.LOCAL_SYMS_STRIPPED) == PEC.MSDStub.Characteristics.LOCAL_SYMS_STRIPPED)
-			retstr += "The LOCAL_SYMS_STRIPPED Characteristic is deprecated\n";
+			retstr += "The LOCAL_SYMS_STRIPPED Characteristic (chrctrs) is deprecated\n";
 		if ((this.stub.chrctrs.readUInt16LE() & PEC.MSDStub.Characteristics.AGGRESSIVE_WS_TRIM) == PEC.MSDStub.Characteristics.AGGRESSIVE_WS_TRIM)
-			retstr += "The AGGRESSIVE_WS_TRIM Characteristic is deprecated\n";
+			retstr += "The AGGRESSIVE_WS_TRIM Characteristic (chrctrs) is deprecated\n";
 		if ((this.stub.chrctrs.readUInt16LE() & PEC.MSDStub.Characteristics.RESERVED) == PEC.MSDStub.Characteristics.RESERVED)
-			retstr += "Characteristic Flag Reserved for future use is used\n";
+			retstr += "Characteristic Flag Reserved for future (chrctrs) use is used\n";
 		if ((this.stub.chrctrs.readUInt16LE() & PEC.MSDStub.Characteristics.BYTES_REVERSED_HI) == PEC.MSDStub.Characteristics.BYTES_REVERSED_HI)
-			retstr += "The BYTES_REVERSED_HI Characteristic is deprecated\n";
+			retstr += "The BYTES_REVERSED_HI Characteristic (chrctrs) is deprecated\n";
 		
 		return retstr;
 	} //isValid
@@ -105,7 +110,7 @@ class PEC {
 		this.stub.e_magic = this.innerbuf.slice(0, 2);			// e_magic:		4d 5a		// Magic number 'MZ'
 		
 		if (this.stub.e_magic.toString("binary") == "MZ" && this.innerbuf.length >= 128) { //IMAGE
-			//PE - 128B
+			// PE - 128B
 			
 			this.stub.e_cblp = this.innerbuf.slice(2, 4);		// e_cblp:		FF 00		// Bytes on last page of file
 			this.stub.e_cp = this.innerbuf.slice(4, 6);			// e_cp:		03 00		// Pages in file
@@ -138,7 +143,7 @@ class PEC {
 			return this.stub;
 		}
 		
-		//COFF - 20B
+		// COFF - 20B
 		
 		this.stub.machine = this.innerbuf.slice(i, i += 2);			// machine		00 00		// Machine/Platform identifier (0 is all)
 		this.stub.sectnum = this.innerbuf.slice(i, i += 2);			// sectnum		05 00		// At least 2
@@ -148,10 +153,13 @@ class PEC {
 		this.stub.optionalsize = this.innerbuf.slice(i, i += 2);	// optionalsize	?? ??		// Size of optional header - zero for object
 		this.stub.chrctrs = this.innerbuf.slice(i, i += 2);			// chrctrs		00 00		// Characteristics
 		
-		if (this.stub.optionalsize.readUInt16LE() > 96) {
+		const optsz = this.stub.optionalsize.readUInt16LE();
+		if (optsz > 96) {
 			// OPT
 			
-			this.stub.o_magic = this.innerbuf.slice(i, i += 2);		// o_magic:		0b 01/02	// Magic number [0x10b exe, 0x107 rom, 0x20b pe32+]
+			let d = 0;
+			
+			this.stub.o_magic = this.innerbuf.slice(i + d, i + (d += 2));		// o_magic:		0b 01/02	// Magic number [0x10b exe, 0x107 rom, 0x20b pe32+]
 			this.stub.isopt = this.stub.o_magic.readUInt16LE();
 			
 			if ((this.stub.isopt == 0x10b && this.stub.optionalsize.readUInt16LE() < 96) ||
@@ -161,13 +169,48 @@ class PEC {
 				return this.stub;
 			}
 			
-			this.stub.o_major = this.innerbuf.slice(i, ++i);			// o_major:			00			// Linker major version
-			this.stub.o_minor = this.innerbuf.slice(i, ++i);			// o_minor:			00			// Linker minor version
-			this.stub.o_code_sz = this.innerbuf.slice(i, i += 4);		// o_code_sz:		00 00 00 00	// Size of code sections
-			this.stub.o_initdat_sz = this.innerbuf.slice(i, i += 4);	// o_initdat_sz:	00 00 00 00	// Size of initialized data sections
-			this.stub.o_uninitdat_sz = this.innerbuf.slice(i, i += 4);	// o_uninitdat_sz:	00 00 00 00	// Size of uninitialized data sections
-			this.stub.o_entry = this.innerbuf.slice(i, i += 4);			// o_entry:			00 00 00 00	// Entry relative to base
-			this.stub.o_base = this.innerbuf.slice(i, i += 4);			// o_base:			00 00 00 00	// Memory base relative to image
+			this.stub.o_major = this.innerbuf.slice(i + d, i + ++d);				// o_major:			00			// Linker major version
+			this.stub.o_minor = this.innerbuf.slice(i + d, i + ++d);				// o_minor:			00			// Linker minor version
+			this.stub.o_code_sz = this.innerbuf.slice(i + d, i + (d += 4));			// o_code_sz:		00 00 00 00	// Size of code sections
+			this.stub.o_initdat_sz = this.innerbuf.slice(i + d, i + (d += 4));		// o_initdat_sz:	00 00 00 00	// Size of initialized data sections
+			this.stub.o_uninitdat_sz = this.innerbuf.slice(i + d, i + (d += 4));	// o_uninitdat_sz:	00 00 00 00	// Size of uninitialized data sections
+			this.stub.o_entry = this.innerbuf.slice(i + d, i + (d += 4));			// o_entry:			00 00 00 00	// Entry relative to base
+			this.stub.o_base = this.innerbuf.slice(i + d, i + (d += 4));			// o_base:			00 00 10 00	// Memory code section relative to image
+			
+			if (this.stub.isopt == 0x10b)
+				this.stub.o_database = this.innerbuf.slice(i + d, i + (d += 4));	// o_database:		00 00 00 00	// Memory data section relative to image
+			
+			// + 24/28 B
+			
+			if (this.stub.isimg) {
+				if (d < optsz) this.stub.o_imbase = this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));		// o_imbase:	10 00 00 00 / 00 00 00 00 00 40 00 00	// Base of Image [0x10000000 dll, 0x00010000 ce-exe, 0x00400000 else]
+				if (d < optsz) this.stub.o_sectalign = this.innerbuf.slice(i + d, i + (d += 4));									// o_sectalign	page_size								// >= FileAlignment
+				if (d < optsz) this.stub.o_filealign = this.innerbuf.slice(i + d, i + (d += 4));									// o_filealign	00 02 00 00								// 64KB > . > 512 | If the SectionAlignment is less than the architecture's page size, then FileAlignment must match SectionAlignment
+				if (d < optsz) this.stub.o_majosver = this.innerbuf.slice(i + d, i + (d += 2));										// 
+				if (d < optsz) this.stub.o_minosver = this.innerbuf.slice(i + d, i + (d += 2));										// 
+				if (d < optsz) this.stub.o_majimver = this.innerbuf.slice(i + d, i + (d += 2));										// 
+				if (d < optsz) this.stub.o_minimver = this.innerbuf.slice(i + d, i + (d += 2));										// 
+				if (d < optsz) this.stub.o_majsubsver = this.innerbuf.slice(i + d, i + (d += 2));									// 
+				if (d < optsz) this.stub.o_minsubsver = this.innerbuf.slice(i + d, i + (d += 2));									// 
+				if (d < optsz) this.stub.o_win32res = this.innerbuf.slice(i + d, i + (d += 4));										// 
+				if (d < optsz) this.stub.o_imgsz = this.innerbuf.slice(i + d, i + (d += 4));										// 
+				if (d < optsz) this.stub.o_hdrsz = this.innerbuf.slice(i + d, i + (d += 4));										// 
+				if (d < optsz) this.stub.o_chksum = this.innerbuf.slice(i + d, i + (d += 4));										// 
+				if (d < optsz) this.stub.o_subs = this.innerbuf.slice(i + d, i + (d += 2));											// 
+				if (d < optsz) this.stub.o_dllchrctrs = this.innerbuf.slice(i + d, i + (d += 2));									// 
+				if (d < optsz) this.stub.o_stackres = this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));	// 
+				if (d < optsz) this.stub.o_stackcomm = this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));	// 
+				if (d < optsz) this.stub.o_heapres = this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));		// 
+				if (d < optsz) this.stub.o_heapcomm = this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));	// 
+				if (d < optsz) this.stub.o_ldflag = this.innerbuf.slice(i + d, i + (d += 4));										// 
+				if (d < optsz) this.stub.o_rva_sz = this.innerbuf.slice(i + d, i + (d += 4));										// 
+				
+				if (this.err = this.isValid()) return this.stub;
+				
+				// RVAs
+			}
+			
+			i += d;
 		} else if (this.stub.optionalsize.readUInt16LE()) {
 			this.err = this.isValid();
 			
@@ -226,10 +269,24 @@ class MSDStub {
 	o_initdat_sz = null; o_uninitdat_sz = null;
 	o_entry = null; o_base = null;
 	o_database = null; isopt = 0;
+	o_imbase = null; o_sectalign = null;
+	o_filealign = null; o_majosver = null;
+	o_minosver = null; o_majimver = null;
+	o_minimver = null; o_majsubsver = null;
+	o_minsubsver = null; o_win32res = null;
+	o_imgsz = null; o_hdrsz = null;
+	o_chksum = null; o_subs = null;
+	o_dllchrctrs = null; o_stackres = null;
+	o_stackcomm = null; o_heapres = null;
+	o_heapcomm = null; o_ldflag = null;
+	o_rva_sz = null;
 	
 	constructor(...args) {
 		for (const i in this)
-			if (!this[i]) this[i] = Buffer.from("00000000", "hex");
+			if (!this[i]) {
+				this[i] = Buffer.from("00000000", "hex");
+				this[i].unalloc = true;
+			}
 	} //ctor
 	
 	get str() {
@@ -237,7 +294,7 @@ class MSDStub {
 	} //g-str
 	
 	toString() {
-		const head = `\t\t\t\t\x1b[4;3;1mVALUES DISPLAYED IN LE ENDIANNESS.\x1b[0m `,
+		const head = `\t\t\t\t\x1b[4;3;1mVALUES DISPLAYED IN LE ENDIANNESS.\x1b[0m\n`,
 			pe = this.isimg ? `\t\x1b[4;1m${'-'.repeat(35)} MSDOS STUB ${'-'.repeat(35)}\x1b[0m 
 pe_magic\t\t(2b : e_magic)\t\t=\t${this.e_magic.toString("binary")}\t\t(${this.e_magic.toString("hex")})
 bytes_last_page\t\t(2b : e_cblp)\t\t=\t${this.e_cblp.readUInt16LE()}\t\t(${this.e_cblp.toString("hex")})
@@ -266,19 +323,22 @@ timestamp\t\t(4b : timestamp)\t=\t${this.timestamp.readUInt32LE()}\t(${this.time
 symtable_ptr\t\t(4b : symtabptr)\t=\t${this.symtabptr.readUInt32LE()}\t\t(${this.symtabptr.toString("hex")})
 symbol_num\t\t(4b : symbnum)\t\t=\t${this.symbnum.readUInt32LE()}\t\t(${this.symbnum.toString("hex")})
 opt_hdr_size\t\t(2b : optionalsize)\t=\t${this.optionalsize.readUInt16LE()}\t\t(${this.optionalsize.toString("hex")})
-characteristics\t\t(2b : chrctrs)\t\t=\t${Object.keys(PEC.MSDStub.Characteristics).filter(k => (this.chrctrs.readUInt16LE() & PEC.MSDStub.Characteristics[k]) == PEC.MSDStub.Characteristics[k]).join(", ") || this.chrctrs.readUInt16LE()}\t(${this.chrctrs.toString("hex")})\n`,
+characteristics\t\t(2b : chrctrs)\t\t=\t${Object.keys(PEC.MSDStub.Characteristics).filter(k => (this.chrctrs.readUInt16LE() & PEC.MSDStub.Characteristics[k]) == PEC.MSDStub.Characteristics[k]).map(c => `${c}[${PEC.MSDStub.Characteristics[c]}]`).join('|') || this.chrctrs.readUInt16LE()}\t(${this.chrctrs.toString("hex")})\n`,
 		opt = this.isopt ? `\t\x1b[4;1m${'-'.repeat(35)}    OPT     ${'-'.repeat(35)}\x1b[0m 
-o_magic\t\t\t(2b : o_magic)\t\t=\t${this.opt == 0x10b ? "PE" : (this.opt == 0x20b ? "PE+" : (this.opt == 0x107 ? "ROM" : this.opt))}\t(${this.o_magic.toString("hex")})
-link_major\t\t(1b : o_major)\t\t=\t${this.o_major.readUInt8()}\t[${this.o_major.toString("hex")}]
-link_minor\t\t(1b : o_minor)\t\t=\t${this.o_minor.readUInt8()}\t[${this.o_minor.toString("hex")}]
-code_sz\t\t\t(4b : o_code_sz)\t=\t${this.o_code_sz.readUInt32LE()}\t[${this.o_code_sz.toString("hex")}]
-initdat_sz\t\t(4b : o_initdat_sz)\t=\t${this.o_initdat_sz.readUInt32LE()}\t[${this.o_initdat_sz.toString("hex")}]
-uninitdat_sz\t\t(4b : o_uninitdat_sz)\t=\t${this.o_uninitdat_sz.readUInt32LE()}\t[${this.o_uninitdat_sz.toString("hex")}]
-entry\t\t\t(4b : o_entry)\t\t=\t${this.o_entry.readUInt32LE()}\t[${this.o_entry.toString("hex")}]
-base\t\t\t(4b : o_base)\t\t=\t${this.o_base.readUInt32LE()}\t[${this.o_base.toString("hex")}]
-databse\t\t\t(4b : o_database)\t=\t${this.o_database.readUInt32LE()}\t[${this.o_database.toString("hex")}]\n` : "";
+o_magic\t\t\t(2b : o_magic)\t\t=\t${this.isopt == 0x10b ? "PE" : (this.isopt == 0x20b ? "PE+" : (this.isopt == 0x107 ? "ROM" : this.isopt))}\t\t(${this.o_magic.toString("hex")})
+link_major\t\t(1b : o_major)\t\t=\t${this.o_major.readUInt8()}\t\t(${this.o_major.toString("hex")})
+link_minor\t\t(1b : o_minor)\t\t=\t${this.o_minor.readUInt8()}\t\t(${this.o_minor.toString("hex")})
+code_sz\t\t\t(4b : o_code_sz)\t=\t${this.o_code_sz.readUInt32LE()}\t\t(${this.o_code_sz.toString("hex")})
+initdat_sz\t\t(4b : o_initdat_sz)\t=\t${this.o_initdat_sz.readUInt32LE()}\t\t(${this.o_initdat_sz.toString("hex")})
+uninitdat_sz\t\t(4b : o_uninitdat_sz)\t=\t${this.o_uninitdat_sz.readUInt32LE()}\t\t(${this.o_uninitdat_sz.toString("hex")})
+entry\t\t\t(4b : o_entry)\t\t=\t${this.o_entry.readUInt32LE()}\t\t(${this.o_entry.toString("hex")})
+base\t\t\t(4b : o_base)\t\t=\t${this.o_base.readUInt32LE()}\t\t(${this.o_base.toString("hex")})
+section_alignment\t(4b : o_sectalign)\t=\t${this.o_sectalign.readUInt32LE()}\t\t(${this.o_sectalign.toString("hex")})\n` : "",
+		pe_ = this.isopt != 0x20b ?`database\t\t(4b : o_database)\t=\t${this.o_database.readUInt32LE()}\t\t(${this.o_database.toString("hex")})
+imagebase\t\t(4b : o_imbase)\t=\t${this.o_imbase.readUInt32LE()}\t\t(${this.o_imbase.toString("hex")})\n` : "",
+		pe_p = this.isopt == 0x20b ? `imagebase\t\t(8b : o_imbase)\t\t=\t${this.o_imbase.readBigUInt64LE()}\t\t(${this.o_imbase.toString("hex")})\n` : "";
 		
-		return pe + coff + opt;
+		return head + pe + coff + opt + pe_ + pe_p;
 	} //toString
 	
 	[Symbol.toPrimitive](hint) {
