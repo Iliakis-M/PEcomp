@@ -68,6 +68,12 @@ class PEC {
 			retstr += "PE signature (sig) broken\n";
 		if (!(this.stub.isopt == 0x10b || this.stub.isopt == 0x20b))
 			retstr += "OPT signature broken\n";
+		if (this.stub.isopt && this.stub.o_win32res.readUInt32LE()) retstr += "Win32Res should be all-zero-filled\n";
+		if (this.stub.isopt && this.stub.o_ldflag.readUInt32LE()) retstr += "Loader Flags (o_ldflag) should be all-zero-filled\n";
+		if (this.stub.isopt && this.stub.o_imgsz.readUInt32LE() % this.stub.o_sectalign.readUInt32LE())
+			retstr += "Image Size (o_imgsz) must be multiple of Section Alignment (o_sectalign)\n";
+		if (this.stub.isopt && this.stub.o_hdrsz.readUInt32LE() % this.stub.o_filealign.readUInt32LE())
+			retstr += "Headers Size (o_hdrsz) must be multiple of File Alignment (o_filealign)\n";
 		if (this.stub.isimg && this.stub.e_res.toString("binary") != "\u0000".repeat(8))
 			retstr += "PE Reserved Space #1 (e_res) should be all-zero-filled\n";
 		if (this.stub.isimg && this.stub.e_res2.toString("binary") != "\u0000".repeat(20))
@@ -97,7 +103,7 @@ class PEC {
 	} //isValid
 	
 	parseStub() {
-		let i = 0;
+		var i = 0;
 		
 		if (!this.stub) this.stub = PEC.MSDStub.init();
 		
@@ -107,32 +113,32 @@ class PEC {
 			return this.stub;
 		}
 		
-		this.stub.e_magic = this.innerbuf.slice(0, 2);			// e_magic:		4d 5a		// Magic number 'MZ'
+		this.stub.e_magic			=	this.innerbuf.slice(0, 2);		// e_magic:		4d 5a		// Magic number 'MZ'
 		
 		if (this.stub.e_magic.toString("binary") == "MZ" && this.innerbuf.length >= 128) { //IMAGE
 			// PE - 128B
 			
-			this.stub.e_cblp = this.innerbuf.slice(2, 4);		// e_cblp:		FF 00		// Bytes on last page of file
-			this.stub.e_cp = this.innerbuf.slice(4, 6);			// e_cp:		03 00		// Pages in file
-			this.stub.e_crlc = this.innerbuf.slice(6, 8);		// e_crlc:		00 00		// Relocations
-			this.stub.e_cparhdr = this.innerbuf.slice(8, 10);	// e_cparhdr:	04 00		// Size of header in paragraphs
-			this.stub.e_minalloc = this.innerbuf.slice(10, 12);	// e_minalloc:	00 00		// Minimum extra paragraphs needed
-			this.stub.e_maxalloc = this.innerbuf.slice(12, 14);	// e_maxalloc:	ff ff		// Maximum extra paragraphs needed
-			this.stub.e_ss = this.innerbuf.slice(14, 16);		// e_ss:		00 00		// Initial (relative) SS value
-			this.stub.e_sp = this.innerbuf.slice(16, 18);		// e_sp:		b8 00		// Initial SP value
-			this.stub.e_csum = this.innerbuf.slice(18, 20);		// e_csum:		00 00		// Checksum
-			this.stub.e_ip = this.innerbuf.slice(20, 22);		// e_ip:		00 00		// Initial IP value
-			this.stub.e_cs = this.innerbuf.slice(22, 24);		// e_cs:		00 00		// Initial (relative) CS value
-			this.stub.e_lfarlc = this.innerbuf.slice(24, 26);	// e_lfarlc:	40 00		// File address of relocation table
-			this.stub.e_ovno = this.innerbuf.slice(26, 28);		// e_ovno:		00 00		// Overlay number
-			this.stub.e_res = this.innerbuf.slice(28, 36);		// e_res:		00 00 00 00 00 00 00 00	// Reserved
-			this.stub.e_oemid = this.innerbuf.slice(36, 38);	// e_oemid:		00 00		// OEM identifier (for e_oeminfo)
-			this.stub.e_oeminfo = this.innerbuf.slice(38, 40);	// e_oeminfo:	00 00		// OEM information; e_oemid specific
-			this.stub.e_res2 = this.innerbuf.slice(40, 60);		// e_res2:		00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00	// Reserved
-			this.stub.e_lfanew = this.innerbuf.slice(60, 64);	// e_lfanew:	80 00 00 00	// File address of the PE header
+			this.stub.e_cblp		=	this.innerbuf.slice(2, 4);		// e_cblp:		FF 00					// Bytes on last page of file
+			this.stub.e_cp			=	this.innerbuf.slice(4, 6);		// e_cp:		03 00					// Pages in file
+			this.stub.e_crlc		=	this.innerbuf.slice(6, 8);		// e_crlc:		00 00					// Relocations
+			this.stub.e_cparhdr		=	this.innerbuf.slice(8, 10);		// e_cparhdr:	04 00					// Size of header in paragraphs
+			this.stub.e_minalloc	=	this.innerbuf.slice(10, 12);	// e_minalloc:	00 00					// Minimum extra paragraphs needed
+			this.stub.e_maxalloc	=	this.innerbuf.slice(12, 14);	// e_maxalloc:	ff ff					// Maximum extra paragraphs needed
+			this.stub.e_ss			=	this.innerbuf.slice(14, 16);	// e_ss:		00 00					// Initial (relative) SS value
+			this.stub.e_sp			=	this.innerbuf.slice(16, 18);	// e_sp:		b8 00					// Initial SP value
+			this.stub.e_csum		=	this.innerbuf.slice(18, 20);	// e_csum:		00 00					// Checksum
+			this.stub.e_ip			=	this.innerbuf.slice(20, 22);	// e_ip:		00 00					// Initial IP value
+			this.stub.e_cs			=	this.innerbuf.slice(22, 24);	// e_cs:		00 00					// Initial (relative) CS value
+			this.stub.e_lfarlc		=	this.innerbuf.slice(24, 26);	// e_lfarlc:	40 00					// File address of relocation table
+			this.stub.e_ovno		=	this.innerbuf.slice(26, 28);	// e_ovno:		00 00					// Overlay number
+			this.stub.e_res			=	this.innerbuf.slice(28, 36);	// e_res:		00 00 00 00 00 00 00 00	// Reserved
+			this.stub.e_oemid		=	this.innerbuf.slice(36, 38);	// e_oemid:		00 00					// OEM identifier (for e_oeminfo)
+			this.stub.e_oeminfo		=	this.innerbuf.slice(38, 40);	// e_oeminfo:	00 00					// OEM information; e_oemid specific
+			this.stub.e_res2		=	this.innerbuf.slice(40, 60);	// e_res2:		00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00	// Reserved
+			this.stub.e_lfanew		=	this.innerbuf.slice(60, 64);	// e_lfanew:	80 00 00 00				// File address of the PE header
 			
 			i = this.stub.e_lfanew.readUInt16LE();
-			this.stub.sig = this.innerbuf.slice(i, i += 4);		// sig			00 00 45 50	// PE magic
+			this.stub.sig			=	this.innerbuf.slice(i, i += 4);	// sig			00 00 45 50	// PE magic
 			
 			this.stub.isimg = true;
 		}
@@ -145,13 +151,13 @@ class PEC {
 		
 		// COFF - 20B
 		
-		this.stub.machine = this.innerbuf.slice(i, i += 2);			// machine		00 00		// Machine/Platform identifier (0 is all)
-		this.stub.sectnum = this.innerbuf.slice(i, i += 2);			// sectnum		05 00		// At least 2
-		this.stub.timestamp = this.innerbuf.slice(i, i += 4);		// timestamp	00 00 00 00	// The low 32 bits of the number of seconds since 00:00 January 1, 1970
-		this.stub.symtabptr = this.innerbuf.slice(i, i += 4);		// symtabptr	00 00 00 00	// Object debug symbol table - zero for image
-		this.stub.symbnum = this.innerbuf.slice(i, i += 4);			// symbnum		00 00 00 00	// Object debug symbol table - zero for image
-		this.stub.optionalsize = this.innerbuf.slice(i, i += 2);	// optionalsize	?? ??		// Size of optional header - zero for object
-		this.stub.chrctrs = this.innerbuf.slice(i, i += 2);			// chrctrs		00 00		// Characteristics
+		this.stub.machine		=	this.innerbuf.slice(i, i += 2);	// machine		00 00		// Machine/Platform identifier (0 is all)
+		this.stub.sectnum		=	this.innerbuf.slice(i, i += 2);	// sectnum		05 00		// At least 2
+		this.stub.timestamp		=	this.innerbuf.slice(i, i += 4);	// timestamp	00 00 00 00	// The low 32 bits of the number of seconds since 00:00 January 1, 1970
+		this.stub.symtabptr		=	this.innerbuf.slice(i, i += 4);	// symtabptr	00 00 00 00	// Object debug symbol table - zero for image
+		this.stub.symbnum		=	this.innerbuf.slice(i, i += 4);	// symbnum		00 00 00 00	// Object debug symbol table - zero for image
+		this.stub.optionalsize	=	this.innerbuf.slice(i, i += 2);	// optionalsize	?? ??		// Size of optional header - zero for object
+		this.stub.chrctrs		=	this.innerbuf.slice(i, i += 2);	// chrctrs		00 00		// Characteristics
 		
 		const optsz = this.stub.optionalsize.readUInt16LE();
 		if (optsz > 96) {
@@ -159,7 +165,7 @@ class PEC {
 			
 			let d = 0;
 			
-			this.stub.o_magic = this.innerbuf.slice(i + d, i + (d += 2));		// o_magic:		0b 01/02	// Magic number [0x10b exe, 0x107 rom, 0x20b pe32+]
+			this.stub.o_magic			=	this.innerbuf.slice(i + d, i + (d += 2));	// o_magic:		0b 01/02	// Magic number [0x10b exe, 0x107 rom, 0x20b pe32+]
 			this.stub.isopt = this.stub.o_magic.readUInt16LE();
 			
 			if ((this.stub.isopt == 0x10b && this.stub.optionalsize.readUInt16LE() < 96) ||
@@ -169,45 +175,56 @@ class PEC {
 				return this.stub;
 			}
 			
-			this.stub.o_major = this.innerbuf.slice(i + d, i + ++d);				// o_major:			00			// Linker major version
-			this.stub.o_minor = this.innerbuf.slice(i + d, i + ++d);				// o_minor:			00			// Linker minor version
-			this.stub.o_code_sz = this.innerbuf.slice(i + d, i + (d += 4));			// o_code_sz:		00 00 00 00	// Size of code sections
-			this.stub.o_initdat_sz = this.innerbuf.slice(i + d, i + (d += 4));		// o_initdat_sz:	00 00 00 00	// Size of initialized data sections
-			this.stub.o_uninitdat_sz = this.innerbuf.slice(i + d, i + (d += 4));	// o_uninitdat_sz:	00 00 00 00	// Size of uninitialized data sections
-			this.stub.o_entry = this.innerbuf.slice(i + d, i + (d += 4));			// o_entry:			00 00 00 00	// Entry relative to base
-			this.stub.o_base = this.innerbuf.slice(i + d, i + (d += 4));			// o_base:			00 00 10 00	// Memory code section relative to image
+			this.stub.o_major			=	this.innerbuf.slice(i + d, i + ++d);		// o_major:			00			// Linker major version
+			this.stub.o_minor			=	this.innerbuf.slice(i + d, i + ++d);		// o_minor:			00			// Linker minor version
+			this.stub.o_code_sz			=	this.innerbuf.slice(i + d, i + (d += 4));	// o_code_sz:		00 00 00 00	// Size of code sections
+			this.stub.o_initdat_sz		=	this.innerbuf.slice(i + d, i + (d += 4));	// o_initdat_sz:	00 00 00 00	// Size of initialized data sections
+			this.stub.o_uninitdat_sz	=	this.innerbuf.slice(i + d, i + (d += 4));	// o_uninitdat_sz:	00 00 00 00	// Size of uninitialized data sections
+			this.stub.o_entry			=	this.innerbuf.slice(i + d, i + (d += 4));	// o_entry:			00 00 00 00	// Entry relative to base
+			this.stub.o_base			=	this.innerbuf.slice(i + d, i + (d += 4));	// o_base:			00 00 10 00	// Memory code section relative to image
 			
 			if (this.stub.isopt == 0x10b)
-				this.stub.o_database = this.innerbuf.slice(i + d, i + (d += 4));	// o_database:		00 00 00 00	// Memory data section relative to image
+				this.stub.o_database	=	this.innerbuf.slice(i + d, i + (d += 4));	// o_database:		00 00 00 00	// Memory data section relative to image
 			
 			// + 24/28 B
 			
 			if (this.stub.isimg) {
-				if (d < optsz) this.stub.o_imbase = this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));		// o_imbase:	10 00 00 00 / 00 00 00 00 00 40 00 00	// Base of Image [0x10000000 dll, 0x00010000 ce-exe, 0x00400000 else]
-				if (d < optsz) this.stub.o_sectalign = this.innerbuf.slice(i + d, i + (d += 4));									// o_sectalign	page_size								// >= FileAlignment
-				if (d < optsz) this.stub.o_filealign = this.innerbuf.slice(i + d, i + (d += 4));									// o_filealign	00 02 00 00								// 64KB > . > 512 | If the SectionAlignment is less than the architecture's page size, then FileAlignment must match SectionAlignment
-				if (d < optsz) this.stub.o_majosver = this.innerbuf.slice(i + d, i + (d += 2));										// 
-				if (d < optsz) this.stub.o_minosver = this.innerbuf.slice(i + d, i + (d += 2));										// 
-				if (d < optsz) this.stub.o_majimver = this.innerbuf.slice(i + d, i + (d += 2));										// 
-				if (d < optsz) this.stub.o_minimver = this.innerbuf.slice(i + d, i + (d += 2));										// 
-				if (d < optsz) this.stub.o_majsubsver = this.innerbuf.slice(i + d, i + (d += 2));									// 
-				if (d < optsz) this.stub.o_minsubsver = this.innerbuf.slice(i + d, i + (d += 2));									// 
-				if (d < optsz) this.stub.o_win32res = this.innerbuf.slice(i + d, i + (d += 4));										// 
-				if (d < optsz) this.stub.o_imgsz = this.innerbuf.slice(i + d, i + (d += 4));										// 
-				if (d < optsz) this.stub.o_hdrsz = this.innerbuf.slice(i + d, i + (d += 4));										// 
-				if (d < optsz) this.stub.o_chksum = this.innerbuf.slice(i + d, i + (d += 4));										// 
-				if (d < optsz) this.stub.o_subs = this.innerbuf.slice(i + d, i + (d += 2));											// 
-				if (d < optsz) this.stub.o_dllchrctrs = this.innerbuf.slice(i + d, i + (d += 2));									// 
-				if (d < optsz) this.stub.o_stackres = this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));	// 
-				if (d < optsz) this.stub.o_stackcomm = this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));	// 
-				if (d < optsz) this.stub.o_heapres = this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));		// 
-				if (d < optsz) this.stub.o_heapcomm = this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));	// 
-				if (d < optsz) this.stub.o_ldflag = this.innerbuf.slice(i + d, i + (d += 4));										// 
-				if (d < optsz) this.stub.o_rva_sz = this.innerbuf.slice(i + d, i + (d += 4));										// 
+				if (optsz - d >= this.stub.isopt == 0x20b ? 8 : 4)	this.stub.o_imbase		=	this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));	else d = optsz;	// o_imbase:	10 00 00 00 / 00 00 00 00 00 40 00 00	// Base of Image [0x10000000 dll, 0x00010000 ce-exe, 0x00400000 else]
+				if (optsz - d >= 4)									this.stub.o_sectalign	=	this.innerbuf.slice(i + d, i + (d += 4));									else d = optsz;	// o_sectalign	page_size								// >= FileAlignment
+				if (optsz - d >= 4)									this.stub.o_filealign	=	this.innerbuf.slice(i + d, i + (d += 4));									else d = optsz;	// o_filealign	00 02 00 00								// 64KB > . > 512 | If the SectionAlignment is less than the architecture's page size, then FileAlignment must match SectionAlignment.
+				if (optsz - d >= 2)									this.stub.o_majosver	=	this.innerbuf.slice(i + d, i + (d += 2));									else d = optsz;	// o_majosver	00 00									// 
+				if (optsz - d >= 2)									this.stub.o_minosver	=	this.innerbuf.slice(i + d, i + (d += 2));									else d = optsz;	// o_minosver	00 00									// 
+				if (optsz - d >= 2)									this.stub.o_majimver	=	this.innerbuf.slice(i + d, i + (d += 2));									else d = optsz;	// o_majimver	00 00									// 
+				if (optsz - d >= 2)									this.stub.o_minimver	=	this.innerbuf.slice(i + d, i + (d += 2));									else d = optsz;	// o_minimver	00 00									// 
+				if (optsz - d >= 2)									this.stub.o_majsubsver	=	this.innerbuf.slice(i + d, i + (d += 2));									else d = optsz;	// o_majsubsver	00 00									// 
+				if (optsz - d >= 2)									this.stub.o_minsubsver	=	this.innerbuf.slice(i + d, i + (d += 2));									else d = optsz;	// o_minsubsver	00 00									// 
+				if (optsz - d >= 4)									this.stub.o_win32res	=	this.innerbuf.slice(i + d, i + (d += 4));									else d = optsz;	// o_win32res	00 00 00 00								// Reserved, must be zero
+				if (optsz - d >= 4)									this.stub.o_imgsz		=	this.innerbuf.slice(i + d, i + (d += 4));									else d = optsz;	// o_imgsz		00 00 00 00								// The size (in bytes) of the image, including all headers, as the image is loaded in memory. It must be a multiple of SectionAlignment.
+				if (optsz - d >= 4)									this.stub.o_hdrsz		=	this.innerbuf.slice(i + d, i + (d += 4));									else d = optsz;	// o_hdrsz		00 00 00 00								// The combined size of an MS-DOS stub, PE header, and section headers rounded up to a multiple of FileAlignment.
+				if (optsz - d >= 4)									this.stub.o_chksum		=	this.innerbuf.slice(i + d, i + (d += 4));									else d = optsz;	// o_chksum		00 00 00 00								// The image file checksum. The algorithm for computing the checksum is incorporated into IMAGHELP.DLL. The following are checked for validation at load time: all drivers, any DLL loaded at boot time, and any DLL that is loaded into a critical Windows process.
+				if (optsz - d >= 2)									this.stub.o_subs		=	this.innerbuf.slice(i + d, i + (d += 2));									else d = optsz;	// o_subs		00 00									// The subsystem that is required to run this image.
+				if (optsz - d >= 2)									this.stub.o_dllchrctrs	=	this.innerbuf.slice(i + d, i + (d += 2));									else d = optsz;	// o_dllchrctrs	00 00									// 
+				if (optsz - d > this.stub.isopt == 0x20b ? 8 : 4)	this.stub.o_stackres	=	this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));	else d = optsz;	// o_stackres	00 00 00 00 / 00 00 00 00 00 00 00 00	// The size of the stack to reserve. Only SizeOfStackCommit is committed; the rest is made available one page at a time until the reserve size is reached.
+				if (optsz - d > this.stub.isopt == 0x20b ? 8 : 4)	this.stub.o_stackcomm	=	this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));	else d = optsz;	// o_stackcomm	00 00 00 00 / 00 00 00 00 00 00 00 00	// The size of the stack to commit.
+				if (optsz - d > this.stub.isopt == 0x20b ? 8 : 4)	this.stub.o_heapres		=	this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));	else d = optsz;	// o_heapres	00 00 00 00 / 00 00 00 00 00 00 00 00	// The size of the local heap space to reserve. Only SizeOfHeapCommit is committed; the rest is made available one page at a time until the reserve size is reached.
+				if (optsz - d > this.stub.isopt == 0x20b ? 8 : 4)	this.stub.o_heapcomm	=	this.innerbuf.slice(i + d, i + (d += (this.stub.isopt == 0x20b ? 8 : 4)));	else d = optsz;	// o_heapcomm	00 00 00 00 / 00 00 00 00 00 00 00 00	// The size of the local heap space to commit.
+				if (optsz - d >= 4)									this.stub.o_ldflag		=	this.innerbuf.slice(i + d, i + (d += 4));									else d = optsz;	// o_ldflag		00 00 00 00								// Reserved, must be zero
+				if (optsz - d >= 4)									this.stub.o_rva_sz		=	this.innerbuf.slice(i + d, i + (d += 4));									else d = optsz;	// o_rva_sz		00 00 00 00								// The number of data-directory entries in the remainder of the optional header. Each describes a location and size.
 				
 				if (this.err = this.isValid()) return this.stub;
 				
 				// RVAs
+				
+				const rvasz = this.stub.o_rva_sz.readUInt32LE();
+				for (var idx = 0; idx < rvasz; idx++) {
+					if (optsz - d >= 8) this.stub.o_rvas.push(PEC.MSDStub.RVA.init(this.innerbuf.slice(i + d, i + (d += 4)), this.innerbuf.slice(i + d, i + (d += 4)), idx));
+					else {
+						d = optsz;
+						break;
+					}
+				}
+				
+				if (this.err = this.isValid()) return this.stub;
 			}
 			
 			i += d;
@@ -279,14 +296,24 @@ class MSDStub {
 	o_dllchrctrs = null; o_stackres = null;
 	o_stackcomm = null; o_heapres = null;
 	o_heapcomm = null; o_ldflag = null;
-	o_rva_sz = null;
+	o_rva_sz = null; o_rvas = [ ];
 	
 	constructor(...args) {
-		for (const i in this)
+		for (const i in this) {
 			if (!this[i]) {
 				this[i] = Buffer.from("00000000", "hex");
 				this[i].unalloc = true;
 			}
+		}
+		
+		Object.defineProperty(this, "o_rvas", {
+			value: [ ]
+		});
+		Object.defineProperty(this.o_rvas, "cleaned", {
+			get() {
+				return this.map(c => c.parsed).filter(c => c.addr || c.size);
+			}
+		});
 	} //ctor
 	
 	get str() {
@@ -305,7 +332,7 @@ min_extra_paragraphs\t(2b : e_minalloc)\t=\t${this.e_minalloc.readUInt16LE()}\t\
 max_extra_paragraphs\t(2b : e_maxalloc)\t=\t${this.e_maxalloc.readUInt16LE()}\t\t(${this.e_maxalloc.toString("hex")})
 rel_stack_seg\t\t(2b : e_ss)\t\t=\t${this.e_ss.readUInt16LE()}\t\t(${this.e_ss.toString("hex")})
 init_stack_ptr\t\t(2b : e_sp)\t\t=\t${this.e_sp.readUInt16LE()}\t\t(${this.e_sp.toString("hex")})
-checksum\t\t(2b : e_csum)\t\t=\t${this.e_csum.readUInt16LE()}\t\t(${this.e_csum.toString("hex")})
+pe_checksum\t\t(2b : e_csum)\t\t=\t${this.e_csum.readUInt16LE()}\t\t(${this.e_csum.toString("hex")})
 init_instr_ptr\t\t(2b : e_ip)\t\t=\t${this.e_ip.readUInt16LE()}\t\t(${this.e_ip.toString("hex")})
 rel_cs_addr\t\t(2b : e_cs)\t\t=\t${this.e_cs.readUInt16LE()}\t\t(${this.e_cs.toString("hex")})
 reloctable_addr\t\t(2b : e_lfarlc)\t\t=\t${this.e_lfarlc.readUInt16LE()}\t\t(${this.e_lfarlc.toString("hex")})
@@ -315,7 +342,8 @@ oem_id\t\t\t(2b : e_oemid)\t\t=\t${this.e_oemid.readUInt16LE()}\t\t(${this.e_oem
 oem_info\t\t(2b : e_oeminfo)\t=\t${this.e_oeminfo.readUInt16LE()}\t\t(${this.e_oeminfo.toString("hex")})
 reserve2\t\t(20b: e_res2)\t\t=\t${this.e_res2.toString("hex")}
 pe_addr\t\t\t(4b : e_lfanew)\t\t=\t${this.e_lfanew.readUInt32LE()}\t\t(${this.e_lfanew.toString("hex")})
-pe_sig\t\t\t(4b : sig)\t\t=\t${this.e_sig.toString("binary")}\t\t(${this.e_sig.toString("hex")})\n` : "",
+pe_sig\t\t\t(4b : sig)\t\t=\t${this.e_sig.toString("binary")}\t\t(${this.e_sig.toString("hex")})
+` : "",
 		coff = `\t\x1b[4;1m${'-'.repeat(35)}    COFF    ${'-'.repeat(35)}\x1b[0m 
 machine\t\t\t(2b : machine)\t\t=\t${Object.keys(PEC.MSDStub.Machine).find(k => PEC.MSDStub.Machine[k] == this.machine.readUInt16LE()) || this.machine.readUInt16LE()}\t\t(${this.machine.toString("hex")})
 sector_num\t\t(2b : sectnum)\t\t=\t${this.sectnum.readUInt16LE()}\t\t(${this.sectnum.toString("hex")})
@@ -323,9 +351,10 @@ timestamp\t\t(4b : timestamp)\t=\t${this.timestamp.readUInt32LE()}\t(${this.time
 symtable_ptr\t\t(4b : symtabptr)\t=\t${this.symtabptr.readUInt32LE()}\t\t(${this.symtabptr.toString("hex")})
 symbol_num\t\t(4b : symbnum)\t\t=\t${this.symbnum.readUInt32LE()}\t\t(${this.symbnum.toString("hex")})
 opt_hdr_size\t\t(2b : optionalsize)\t=\t${this.optionalsize.readUInt16LE()}\t\t(${this.optionalsize.toString("hex")})
-characteristics\t\t(2b : chrctrs)\t\t=\t${Object.keys(PEC.MSDStub.Characteristics).filter(k => (this.chrctrs.readUInt16LE() & PEC.MSDStub.Characteristics[k]) == PEC.MSDStub.Characteristics[k]).map(c => `${c}[${PEC.MSDStub.Characteristics[c]}]`).join('|') || this.chrctrs.readUInt16LE()}\t(${this.chrctrs.toString("hex")})\n`,
+characteristics\t\t(2b : chrctrs)\t\t=\t${Object.keys(PEC.MSDStub.Characteristics).filter(k => (this.chrctrs.readUInt16LE() & PEC.MSDStub.Characteristics[k]) == PEC.MSDStub.Characteristics[k]).map(c => `${c}[${PEC.MSDStub.Characteristics[c]}]`).join('|') || this.chrctrs.readUInt16LE()}\t(${this.chrctrs.toString("hex")})
+`,
 		opt = this.isopt ? `\t\x1b[4;1m${'-'.repeat(35)}    OPT     ${'-'.repeat(35)}\x1b[0m 
-o_magic\t\t\t(2b : o_magic)\t\t=\t${this.isopt == 0x10b ? "PE" : (this.isopt == 0x20b ? "PE+" : (this.isopt == 0x107 ? "ROM" : this.isopt))}\t\t(${this.o_magic.toString("hex")})
+opt_magic\t\t(2b : o_magic)\t\t=\t${this.isopt == 0x10b ? "PE" : (this.isopt == 0x20b ? "PE+" : (this.isopt == 0x107 ? "ROM" : this.isopt))}\t\t(${this.o_magic.toString("hex")})
 link_major\t\t(1b : o_major)\t\t=\t${this.o_major.readUInt8()}\t\t(${this.o_major.toString("hex")})
 link_minor\t\t(1b : o_minor)\t\t=\t${this.o_minor.readUInt8()}\t\t(${this.o_minor.toString("hex")})
 code_sz\t\t\t(4b : o_code_sz)\t=\t${this.o_code_sz.readUInt32LE()}\t\t(${this.o_code_sz.toString("hex")})
@@ -333,12 +362,40 @@ initdat_sz\t\t(4b : o_initdat_sz)\t=\t${this.o_initdat_sz.readUInt32LE()}\t\t(${
 uninitdat_sz\t\t(4b : o_uninitdat_sz)\t=\t${this.o_uninitdat_sz.readUInt32LE()}\t\t(${this.o_uninitdat_sz.toString("hex")})
 entry\t\t\t(4b : o_entry)\t\t=\t${this.o_entry.readUInt32LE()}\t\t(${this.o_entry.toString("hex")})
 base\t\t\t(4b : o_base)\t\t=\t${this.o_base.readUInt32LE()}\t\t(${this.o_base.toString("hex")})
-section_alignment\t(4b : o_sectalign)\t=\t${this.o_sectalign.readUInt32LE()}\t\t(${this.o_sectalign.toString("hex")})\n` : "",
+section_alignment\t(4b : o_sectalign)\t=\t${this.o_sectalign.readUInt32LE()}\t\t(${this.o_sectalign.toString("hex")})
+file_alignment\t\t(4b : o_filealign)\t=\t${this.o_filealign.readUInt32LE()}\t\t(${this.o_filealign.toString("hex")})
+major_os_ver\t\t(2b : o_majosver)\t=\t${this.o_majosver.readUInt16LE()}\t\t(${this.o_majosver.toString("hex")})
+minor_os_ver\t\t(2b : o_minosver)\t=\t${this.o_minosver.readUInt16LE()}\t\t(${this.o_minosver.toString("hex")})
+major_img_ver\t\t(2b : o_majimver)\t=\t${this.o_majimver.readUInt16LE()}\t\t(${this.o_majimver.toString("hex")})
+minor_img_ver\t\t(2b : o_minimver)\t=\t${this.o_minimver.readUInt16LE()}\t\t(${this.o_minimver.toString("hex")})
+major_subs_ver\t\t(2b : o_majsubsver)\t=\t${this.o_majsubsver.readUInt16LE()}\t\t(${this.o_majsubsver.toString("hex")})
+minor_subs_ver\t\t(2b : o_minsubsver)\t=\t${this.o_minsubsver.readUInt16LE()}\t\t(${this.o_minsubsver.toString("hex")})
+win_32_res\t\t(4b : o_win32res)\t=\t${this.o_win32res.readUInt32LE()}\t\t(${this.o_win32res.toString("hex")})
+image_sz\t\t(4b : o_imgsz)\t\t=\t${this.o_imgsz.readUInt32LE()}\t\t(${this.o_imgsz.toString("hex")})
+headers_sz\t\t(4b : o_hdrsz)\t\t=\t${this.o_hdrsz.readUInt32LE()}\t\t(${this.o_hdrsz.toString("hex")})
+checksum\t\t(4b : o_chksum)\t\t=\t${this.o_chksum.readUInt32LE()}\t\t(${this.o_chksum.toString("hex")})
+subsystem\t\t(2b : o_subs)\t\t=\t${Object.keys(PEC.MSDStub.Subsystem).find(k => this.o_subs.readUInt16LE() == PEC.MSDStub.Subsystem[k]) || this.o_subs.readUInt16LE()}\t(${this.o_subs.toString("hex")})
+dll_characteristics\t(2b : o_dllchrctrs)\t=\t${Object.keys(PEC.MSDStub.DLLCharacteristics).filter(k => (this.o_dllchrctrs.readUInt16LE() & PEC.MSDStub.DLLCharacteristics[k]) == PEC.MSDStub.DLLCharacteristics[k]).map(c => `${c}[${PEC.MSDStub.DLLCharacteristics[c]}]`).join('|') || this.o_dllchrctrs.readUInt16LE()}\t(${this.o_dllchrctrs.toString("hex")})
+loader_flags\t\t(4b : o_ldflag)\t\t=\t${this.o_ldflag.readUInt32LE()}\t\t(${this.o_ldflag.toString("hex")})
+rvas_szs\t\t(4b : o_rva_sz)\t\t=\t${this.o_rva_sz.readUInt32LE()}\t\t(${this.o_rva_sz.toString("hex")})
+` : "",
 		pe_ = this.isopt != 0x20b ?`database\t\t(4b : o_database)\t=\t${this.o_database.readUInt32LE()}\t\t(${this.o_database.toString("hex")})
-imagebase\t\t(4b : o_imbase)\t=\t${this.o_imbase.readUInt32LE()}\t\t(${this.o_imbase.toString("hex")})\n` : "",
-		pe_p = this.isopt == 0x20b ? `imagebase\t\t(8b : o_imbase)\t\t=\t${this.o_imbase.readBigUInt64LE()}\t\t(${this.o_imbase.toString("hex")})\n` : "";
+imagebase\t\t(4b : o_imbase)\t=\t${this.o_imbase.readUInt32LE()}\t\t(${this.o_imbase.toString("hex")})
+stack_reserve\t\t(4b : o_stackres)\t=\t${this.o_stackres.readUInt32LE()}\t\t(${this.o_stackres.toString("hex")})
+stack_commit\t\t(4b : o_stackcomm)\t=\t${this.o_stackcomm.readUInt32LE()}\t\t(${this.o_stackcomm.toString("hex")})
+heap_reserve\t\t(4b : o_heapres)\t=\t${this.o_heapres.readUInt32LE()}\t\t(${this.o_heapres.toString("hex")})
+heap_commit\t\t(4b : o_heapcomm)\t=\t${this.o_heapcomm.readUInt32LE()}\t\t(${this.o_heapcomm.toString("hex")})
+` : "",
+		pe_p = this.isopt == 0x20b ? `imagebase\t\t(8b : o_imbase)\t\t=\t${this.o_imbase.readBigUInt64LE()}\t\t(${this.o_imbase.toString("hex")})
+stack_reserve\t\t(8b : o_stackres)\t=\t${this.o_stackres.readBigUInt64LE()}\t\t(${this.o_stackres.toString("hex")})
+stack_commit\t\t(8b : o_stackcomm)\t=\t${this.o_stackcomm.readBigUInt64LE()}\t\t(${this.o_stackcomm.toString("hex")})
+heap_reserve\t\t(8b : o_heapres)\t=\t${this.o_heapres.readBigUInt64LE()}\t\t(${this.o_heapres.toString("hex")})
+heap_commit\t\t(8b : o_heapcomm)\t=\t${this.o_heapcomm.readBigUInt64LE()}\t\t(${this.o_heapcomm.toString("hex")})
+` : "",
+		rva = this.isopt ? `\t\x1b[4;1m${'-'.repeat(35)}  RVAs (${this.o_rva_sz.readUInt32LE()})  ${'-'.repeat(35)}\x1b[0m 
+\t${this.o_rvas.cleaned.map(rv => `${rv.idx}:\t${rv.addr}|${this.o_rvas[rv.idx].addr.toString("hex")}\t(${rv.size}|${this.o_rvas[rv.idx].size.toString("hex")})`).join("\n\t")}\n` : "";
 		
-		return head + pe + coff + opt + pe_ + pe_p;
+		return head + pe + coff + opt + pe_ + pe_p + rva;
 	} //toString
 	
 	[Symbol.toPrimitive](hint) {
@@ -352,55 +409,113 @@ imagebase\t\t(4b : o_imbase)\t=\t${this.o_imbase.readUInt32LE()}\t\t(${this.o_im
 	
 } //Stub
 
-Object.defineProperty(MSDStub, "Machine", {
-	value: {
-		UNKNOWN:	0x0,	// The content of this field is assumed to be applicable to any machine type
-		AM33:		0x1d3,	// Matsushita AM33
-		AMD64:		0x8664,	// x64
-		ARM:		0x1c0,	// ARM little endian
-		ARM64:		0xaa64,	// ARM64 little endian
-		ARMNT:		0x1c4,	// ARM Thumb-2 little endian
-		EBC:		0xebc,	// EFI byte code
-		I386:		0x14c,	// Intel 386 or later processors and compatible processors
-		IA64:		0x200,	// Intel Itanium processor family
-		M32R:		0x9041,	// Mitsubishi M32R little endian
-		MIPS16:		0x266,	// MIPS16
-		MIPSFPU:	0x366,	// MIPS with FPU
-		MIPSFPU16:	0x466,	// MIPS16 with FPU
-		POWERPC:	0x1f0,	// Power PC little endian
-		POWERPCFP:	0x1f1,	// Power PC with floating point support
-		R4000:		0x166,	// MIPS little endian
-		RISCV32:	0x5032,	// RISC-V 32-bit address space
-		RISCV64:	0x5064,	// RISC-V 64-bit address space
-		RISCV128:	0x5128,	// RISC-V 128-bit address space
-		SH3:		0x1a2,	// Hitachi SH3
-		SH3DSP:		0x1a3,	// Hitachi SH3 DSP
-		SH4:		0x1a6,	// Hitachi SH4
-		SH5:		0x1a8,	// Hitachi SH5
-		THUMB:		0x1c2,	// Thumb
-		WCEMIPSV2:	0x169,	// MIPS little-endian WCE v2
-	}
-});
-Object.defineProperty(MSDStub, "Characteristics", {
-	value: {
-		RELOCS_STRIPPED:			0x0001,	// Image only, Windows CE, and Microsoft Windows NT and later. This indicates that the file does not contain base relocations and must therefore be loaded at its preferred base address. If the base address is not available, the loader reports an error. The default behavior of the linker is to strip base relocations from executable (EXE) files.
-		EXECUTABLE_IMAGE:			0x0002,	// Image only. This indicates that the image file is valid and can be run. If this flag is not set, it indicates a linker error.
-		LINE_NUMS_STRIPPED:			0x0004,	// COFF line numbers have been removed. This flag is deprecated and should be zero.
-		LOCAL_SYMS_STRIPPED:		0x0008,	// COFF symbol table entries for local symbols have been removed. This flag is deprecated and should be zero.
-		AGGRESSIVE_WS_TRIM:			0x0010,	// Obsolete. Aggressively trim working set. This flag is deprecated for Windows 2000 and later and must be zero.
-		LARGE_ADDRESS_AWARE:		0x0020,	// Application can handle > 2-GB addresses.
-		RESERVED:					0x0040,	// This flag is reserved for future use.
-		BYTES_REVERSED_LO:			0x0080,	// Little endian: the least significant bit (LSB) precedes the most significant bit (MSB) in memory. This flag is deprecated and should be zero.
-		BIT32_MACHINE:				0x0100,	// Machine is based on a 32-bit-word architecture.
-		DEBUG_STRIPPED:				0x0200,	// Debugging information is removed from the image file.
-		REMOVABLE_RUN_FROM_SWAP:	0x0400,	// If the image is on removable media, fully load it and copy it to the swap file.
-		NET_RUN_FROM_SWAP:			0x0800,	// If the image is on network media, fully load it and copy it to the swap file.
-		SYSTEM:						0x1000,	// The image file is a system file, not a user program.
-		DLL:						0x2000,	// The image file is a dynamic-link library (DLL). Such files are considered executable files for almost all purposes, although they cannot be directly run.
-		UP_SYSTEM_ONLY:				0x4000,	// The file should be run only on a uniprocessor machine.
-		BYTES_REVERSED_HI:			0x8000,	// Big endian: the MSB precedes the LSB in memory. This flag is deprecated and should be zero.
-	}
-});
+class RVA {
+	
+	addr = null;
+	size = 0;
+	rvaidx = 0;
+	
+	constructor(addr, sz, idx) {
+		this.addr = addr;
+		this.size = sz;
+		this.rvaidx = idx;
+		
+		assert(addr.length == 4 && sz.length == 4, "RVA bad size");
+	} //ctor
+	
+	static init(...args) {
+		return new PEC.MSDStub.RVA(...args);
+	} //init
+	
+	get parsed() {
+		return {
+			addr: (this.addr || Buffer.from("00000000", "hex")).readUInt32LE(),
+			size: (this.size || Buffer.from("00000000", "hex")).readUInt32LE(),
+			idx: this.rvaidx
+		};
+	} //parsed
+	
+} //RVA
+
 PEC.MSDStub = MSDStub;
-global._pec = PEC.init(true);
+PEC.MSDStub.RVA = RVA;
+PEC.MSDStub.Machine = {
+	UNKNOWN:	0x0,	// The content of this field is assumed to be applicable to any machine type
+	AM33:		0x1d3,	// Matsushita AM33
+	AMD64:		0x8664,	// x64
+	ARM:		0x1c0,	// ARM little endian
+	ARM64:		0xaa64,	// ARM64 little endian
+	ARMNT:		0x1c4,	// ARM Thumb-2 little endian
+	EBC:		0xebc,	// EFI byte code
+	I386:		0x14c,	// Intel 386 or later processors and compatible processors
+	IA64:		0x200,	// Intel Itanium processor family
+	M32R:		0x9041,	// Mitsubishi M32R little endian
+	MIPS16:		0x266,	// MIPS16
+	MIPSFPU:	0x366,	// MIPS with FPU
+	MIPSFPU16:	0x466,	// MIPS16 with FPU
+	POWERPC:	0x1f0,	// Power PC little endian
+	POWERPCFP:	0x1f1,	// Power PC with floating point support
+	R4000:		0x166,	// MIPS little endian
+	RISCV32:	0x5032,	// RISC-V 32-bit address space
+	RISCV64:	0x5064,	// RISC-V 64-bit address space
+	RISCV128:	0x5128,	// RISC-V 128-bit address space
+	SH3:		0x1a2,	// Hitachi SH3
+	SH3DSP:		0x1a3,	// Hitachi SH3 DSP
+	SH4:		0x1a6,	// Hitachi SH4
+	SH5:		0x1a8,	// Hitachi SH5
+	THUMB:		0x1c2,	// Thumb
+	WCEMIPSV2:	0x169,	// MIPS little-endian WCE v2
+};
+PEC.MSDStub.Characteristics = {
+	RELOCS_STRIPPED:			0x0001,	// Image only, Windows CE, and Microsoft Windows NT and later. This indicates that the file does not contain base relocations and must therefore be loaded at its preferred base address. If the base address is not available, the loader reports an error. The default behavior of the linker is to strip base relocations from executable (EXE) files.
+	EXECUTABLE_IMAGE:			0x0002,	// Image only. This indicates that the image file is valid and can be run. If this flag is not set, it indicates a linker error.
+	LINE_NUMS_STRIPPED:			0x0004,	// COFF line numbers have been removed. This flag is deprecated and should be zero.
+	LOCAL_SYMS_STRIPPED:		0x0008,	// COFF symbol table entries for local symbols have been removed. This flag is deprecated and should be zero.
+	AGGRESSIVE_WS_TRIM:			0x0010,	// Obsolete. Aggressively trim working set. This flag is deprecated for Windows 2000 and later and must be zero.
+	LARGE_ADDRESS_AWARE:		0x0020,	// Application can handle > 2-GB addresses.
+	RESERVED:					0x0040,	// This flag is reserved for future use.
+	BYTES_REVERSED_LO:			0x0080,	// Little endian: the least significant bit (LSB) precedes the most significant bit (MSB) in memory. This flag is deprecated and should be zero.
+	BIT32_MACHINE:				0x0100,	// Machine is based on a 32-bit-word architecture.
+	DEBUG_STRIPPED:				0x0200,	// Debugging information is removed from the image file.
+	REMOVABLE_RUN_FROM_SWAP:	0x0400,	// If the image is on removable media, fully load it and copy it to the swap file.
+	NET_RUN_FROM_SWAP:			0x0800,	// If the image is on network media, fully load it and copy it to the swap file.
+	SYSTEM:						0x1000,	// The image file is a system file, not a user program.
+	DLL:						0x2000,	// The image file is a dynamic-link library (DLL). Such files are considered executable files for almost all purposes, although they cannot be directly run.
+	UP_SYSTEM_ONLY:				0x4000,	// The file should be run only on a uniprocessor machine.
+	BYTES_REVERSED_HI:			0x8000,	// Big endian: the MSB precedes the LSB in memory. This flag is deprecated and should be zero.
+};
+PEC.MSDStub.Subsystem = {
+	UNKNOWN:					0,	// An unknown subsystem
+	NATIVE:						1,	// Device drivers and native Windows processes
+	WINDOWS_GUI:				2,	// The Windows graphical user interface (GUI) subsystem
+	WINDOWS_CUI:				3,	// The Windows character subsystem
+	OS2_CUI:					5,	// The OS/2 character subsystem
+	POSIX_CUI:					7,	// The Posix character subsystem
+	NATIVE_WINDOWS:				8,	// Native Win9x driver
+	WINDOWS_CE_GUI:				9,	// Windows CE
+	EFI_APPLICATION:			10,	// An Extensible Firmware Interface (EFI) application
+	EFI_BOOT_SERVICE_DRIVER:	11,	// An EFI driver with boot services
+	EFI_RUNTIME_DRIVER:			12,	// An EFI driver with run-time services
+	EFI_ROM:					13,	// An EFI ROM image
+	XBOX:						14,	// XBOX
+	WINDOWS_BOOT_APPLICATION:	16,	// Windows boot application.
+};
+PEC.MSDStub.DLLCharacteristics = {
+	RESERVED1:				0x0001,	// Reserved, must be zero.
+	RESERVED2:				0x0002,	// Reserved, must be zero.
+	RESERVED3:				0x0004,	// Reserved, must be zero.
+	RESERVED4:				0x0008,	// Reserved, must be zero.
+	HIGH_ENTROPY_VA:		0x0020,	// Image can handle a high entropy 64-bit virtual address space.
+	DYNAMIC_BASE:			0x0040,	// DLL can be relocated at load time.
+	FORCE_INTEGRITY:		0x0080,	// Code Integrity checks are enforced.
+	NX_COMPAT:				0x0100,	// Image is NX compatible.
+	NO_ISOLATION:			0x0200,	// Isolation aware, but do not isolate the image.
+	NO_SEH:					0x0400,	// Does not use structured exception (SE) handling. No SE handler may be called in this image.
+	NO_BIND:				0x0800,	// Do not bind the image.
+	APPCONTAINER:			0x1000,	// Image must execute in an AppContainer.
+	WDM_DRIVER:				0x2000,	// A WDM driver.
+	GUARD_CF:				0x4000,	// Image supports Control Flow Guard.
+	TERMINAL_SERVER_AWARE:	0x8000,	// Terminal Server aware.
+};
 global.PEC = exports.PEC = PEC;
+global._pec = PEC.init(true);
