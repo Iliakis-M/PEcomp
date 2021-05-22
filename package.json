@@ -12,8 +12,11 @@
   ],
   "author": "V.H. <alternativexxxy@gmail.com>",
   "license": "ISC",
-  "bin": {},
+  "bin": {
+    "pecomp": "bin/pecomp.js"
+  },
   "engines": {
     "node": ">=10"
-  }
+  },
+  "repository": "https://github.com/Iliakis-M/PEcomp.git"
 }

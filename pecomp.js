@@ -1,5 +1,3 @@
-#!/usr/bin env
-
 "use strict";
 
 const fs = require("fs").promises,
@@ -64,7 +62,7 @@ class PEC {
 			retstr += "OPT size (optionalsize) broken\n";
 		if (this.stub.isopt == 0x20b && this.stub.optionalsize.readUInt16LE() < 112)
 			retstr += "OPT+ size (optionalsize) broken\n";
-		if (this.stub.isimg && this.stub.sig.toString("binary") != "PE\u0000\u0000")
+		if (this.stub.isimg && this.stub.e_sig.toString("binary") != "PE\u0000\u0000")
 			retstr += "PE signature (sig) broken\n";
 		if (!(this.stub.isopt == 0x10b || this.stub.isopt == 0x20b))
 			retstr += "OPT signature broken\n";
@@ -138,7 +136,7 @@ class PEC {
 			this.stub.e_lfanew		=	this.innerbuf.slice(60, 64);	// e_lfanew:	80 00 00 00				// File address of the PE header
 			
 			i = this.stub.e_lfanew.readUInt16LE();
-			this.stub.sig			=	this.innerbuf.slice(i, i += 4);	// sig			00 00 45 50	// PE magic
+			this.stub.e_sig			=	this.innerbuf.slice(i, i += 4);	// sig			00 00 45 50	// PE magic
 			
 			this.stub.isimg = true;
 		}
