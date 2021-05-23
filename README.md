@@ -19,7 +19,7 @@ PEC.read("file.exe").then(p => {
 
 ```bash
 pecomp src/HxD.exe
-                                VALUES DISPLAYED IN LE ENDIANNESS.
+                                VALUES DISPLAYED IN LE ENDIANNESS. 
         ----------------------------------- MSDOS STUB ----------------------------------- 
 pe_magic                (2b : e_magic)          =       MZ              (4d5a)
 bytes_last_page         (2b : e_cblp)           =       0               (0000)
@@ -81,12 +81,75 @@ heap_reserve            (8b : o_heapres)        =       1048576         (0000100
 heap_commit             (8b : o_heapcomm)       =       8192            (0020000000000000)
         -----------------------------------  RVAs (16)  ----------------------------------- 
         Index|Sector:   Address                 (Size)
-        1|Export:       6344704|00d06000        (23024|f0590000)
-        2|Import:       6631424|00306500        (355840|006e0500)
-        3|Resource:     6381568|00606100        (246048|20c10300)
-        9|Global:       6377472|00506100        (40|28000000)
-        12|Bound_Imp:   6350472|88e66000        (5408|20150000)
-        13|Address_Imp: 6369280|00306100        (3466|8a0d0000)
+2|Import:       6344704|00306500        (23024|006e0500)
+3|Resource:     6631424|00606100        (355840|20c10300)
+4|Exception:    6381568|00000000        (246048|00000000)
+10|Thread_Loc:  6377472|00000000        (40|00000000)
+13|Address_Imp: 6350472|00306100        (5408|8a0d0000)
+14|Delay_Imp:   6369280|00000000        (3466|00000000)
+        -----------------------------------    SECT    ----------------------------------- 
+.text:
+        addr:                   4096            |       sz:     5467328
+        data:                   1024            |       initsz: 5467648
+        relocs:                 0               |       num:    0
+        lines:                  0               |       num:    0
+        characteristics:        CNT_CODE[32]|MEM_EXECUTE[536870912]|MEM_READ[1073741824]                (1610612768)
+
+.data:
+        addr:                   5472256         |       sz:     816944
+        data:                   5468672         |       initsz: 817152
+        relocs:                 0               |       num:    0
+        lines:                  0               |       num:    0
+        characteristics:        CNT_INITIALIZED_DATA[64]|MEM_READ[1073741824]|MEM_WRITE[2147483648]             (3221225536)
+
+.bss:
+        addr:                   6291456         |       sz:     50044
+        data:                   6285824         |       initsz: 0
+        relocs:                 0               |       num:    0
+        lines:                  0               |       num:    0
+        characteristics:        MEM_READ[1073741824]|MEM_WRITE[2147483648]              (3221225472)
+
+.idata:
+        addr:                   6344704         |       sz:     23024
+        data:                   6285824         |       initsz: 23040
+        relocs:                 0               |       num:    0
+        lines:                  0               |       num:    0
+        characteristics:        CNT_INITIALIZED_DATA[64]|MEM_READ[1073741824]|MEM_WRITE[2147483648]             (3221225536)
+
+.didata:
+        addr:                   6369280         |       sz:     3466
+        data:                   6308864         |       initsz: 3584
+        relocs:                 0               |       num:    0
+        lines:                  0               |       num:    0
+        characteristics:        CNT_INITIALIZED_DATA[64]|MEM_READ[1073741824]|MEM_WRITE[2147483648]             (3221225536)
+
+.tls:
+        addr:                   6373376         |       sz:     716
+        data:                   6312448         |       initsz: 0
+        relocs:                 0               |       num:    0
+        lines:                  0               |       num:    0
+        characteristics:        MEM_READ[1073741824]|MEM_WRITE[2147483648]              (3221225472)
+
+.rdata:
+        addr:                   6377472         |       sz:     40
+        data:                   6312448         |       initsz: 512
+        relocs:                 0               |       num:    0
+        lines:                  0               |       num:    0
+        characteristics:        CNT_INITIALIZED_DATA[64]|MEM_READ[1073741824]           (1073741888)
+
+.pdata:
+        addr:                   6381568         |       sz:     246048
+        data:                   6312960         |       initsz: 246272
+        relocs:                 0               |       num:    0
+        lines:                  0               |       num:    0
+        characteristics:        CNT_INITIALIZED_DATA[64]|MEM_READ[1073741824]           (1073741888)
+
+.rsrc:
+        addr:                   6631424         |       sz:     346260
+        data:                   6559232         |       initsz: 346624
+        relocs:                 0               |       num:    0
+        lines:                  0               |       num:    0
+        characteristics:        CNT_INITIALIZED_DATA[64]|MEM_READ[1073741824]           (1073741888)
 
 ```
 
