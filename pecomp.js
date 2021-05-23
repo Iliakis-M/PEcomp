@@ -4,6 +4,17 @@ const fs = require("fs").promises,
 	assert = require("assert").strict,
 	os = require("os");
 
+function pad(str = "", min = 1, by = ' ', post = true) {
+	str = (str !== undefined ? str : "") + '';
+	
+	if (str.length < min) {
+		if (post) return by.repeat(min - str.length) + str;
+		else return str + by.repeat(min - str.length);
+	}
+	
+	return str;
+} //pad
+
 /**
  * TODO:
  * 	* Trim MSDosStub
@@ -163,7 +174,7 @@ class PEC {
 			this.hdr.e_cblp		=	this.innerbuf.slice(2, 4);		// e_cblp:		FF 00					// Bytes on last page of file
 			this.hdr.e_cp		=	this.innerbuf.slice(4, 6);		// e_cp:		03 00					// Pages in file
 			this.hdr.e_crlc		=	this.innerbuf.slice(6, 8);		// e_crlc:		00 00					// Relocations
-			this.hdr.e_cparhdr	=	this.innerbuf.slice(8, 10);		// e_cparhdr:	04 00					// Size of header in paragraphs
+			this.hdr.e_cparhdr	=	this.innerbuf.slice(8, 11);		// e_cparhdr:	04 00					// Size of header in paragraphs
 			this.hdr.e_minalloc	=	this.innerbuf.slice(10, 12);	// e_minalloc:	00 00					// Minimum extra paragraphs needed
 			this.hdr.e_maxalloc	=	this.innerbuf.slice(12, 14);	// e_maxalloc:	ff ff					// Maximum extra paragraphs needed
 			this.hdr.e_ss		=	this.innerbuf.slice(14, 16);	// e_ss:		00 00					// Initial (relative) SS value
@@ -408,81 +419,83 @@ class Hdr {
 	
 	toString() {
 		const head = `\t\t\t\t\x1b[4;3;1mVALUES DISPLAYED IN LE ENDIANNESS.\x1b[0m ${os.EOL}`,
-			pe = this.isimg ? `\t\x1b[4;1m${'-'.repeat(35)} MSDOS STUB ${'-'.repeat(35)}\x1b[0m 
-pe_magic\t\t(2b : e_magic)\t\t=\t${this.e_magic.toString("binary")}\t\t(${this.e_magic.toString("hex")})
-bytes_last_page\t\t(2b : e_cblp)\t\t=\t${this.e_cblp.readUInt16LE()}\t\t(${this.e_cblp.toString("hex")})
-pages\t\t\t(2b : e_cp)\t\t=\t${this.e_cp.readUInt16LE()}\t\t(${this.e_cp.toString("hex")})
-relocs\t\t\t(2b : e_crlc)\t\t=\t${this.e_crlc.readUInt16LE()}\t\t(${this.e_crlc.toString("hex")})
-header_size_paragraphs\t(2b : e_cparhdr)\t=\t${this.e_cparhdr.readUInt16LE()}\t\t(${this.e_cparhdr.toString("hex")})
-min_extra_paragraphs\t(2b : e_minalloc)\t=\t${this.e_minalloc.readUInt16LE()}\t\t(${this.e_minalloc.toString("hex")})
-max_extra_paragraphs\t(2b : e_maxalloc)\t=\t${this.e_maxalloc.readUInt16LE()}\t\t(${this.e_maxalloc.toString("hex")})
-rel_stack_seg\t\t(2b : e_ss)\t\t=\t${this.e_ss.readUInt16LE()}\t\t(${this.e_ss.toString("hex")})
-init_stack_ptr\t\t(2b : e_sp)\t\t=\t${this.e_sp.readUInt16LE()}\t\t(${this.e_sp.toString("hex")})
-pe_checksum\t\t(2b : e_csum)\t\t=\t${this.e_csum.readUInt16LE()}\t\t(${this.e_csum.toString("hex")})
-init_instr_ptr\t\t(2b : e_ip)\t\t=\t${this.e_ip.readUInt16LE()}\t\t(${this.e_ip.toString("hex")})
-rel_cs_addr\t\t(2b : e_cs)\t\t=\t${this.e_cs.readUInt16LE()}\t\t(${this.e_cs.toString("hex")})
-reloctable_addr\t\t(2b : e_lfarlc)\t\t=\t${this.e_lfarlc.readUInt16LE()}\t\t(${this.e_lfarlc.toString("hex")})
-overlay_num\t\t(2b : e_ovno)\t\t=\t${this.e_ovno.readUInt16LE()}\t\t(${this.e_ovno.toString("hex")})
-reserve1\t\t(8b : e_res)\t\t=\t${this.e_res.toString("hex")}
-oem_id\t\t\t(2b : e_oemid)\t\t=\t${this.e_oemid.readUInt16LE()}\t\t(${this.e_oemid.toString("hex")})
-oem_info\t\t(2b : e_oeminfo)\t=\t${this.e_oeminfo.readUInt16LE()}\t\t(${this.e_oeminfo.toString("hex")})
-reserve2\t\t(20b: e_res2)\t\t=\t${this.e_res2.toString("hex")}
-pe_addr\t\t\t(4b : e_lfanew)\t\t=\t${this.e_lfanew.readUInt32LE()}\t\t(${this.e_lfanew.toString("hex")})
-pe_sig\t\t\t(4b : sig)\t\t=\t${this.e_sig.toString("binary")}\t\t(${this.e_sig.toString("hex")})
-` : "",
-		coff = `\t\x1b[4;1m${'-'.repeat(35)}    COFF    ${'-'.repeat(35)}\x1b[0m 
-machine\t\t\t(2b : machine)\t\t=\t${Object.keys(PEC.Hdr.Machine).find(k => PEC.Hdr.Machine[k] == this.machine.readUInt16LE()) || this.machine.readUInt16LE()}\t\t(${this.machine.toString("hex")})
-sector_num\t\t(2b : sectnum)\t\t=\t${this.sectnum.readUInt16LE()}\t\t(${this.sectnum.toString("hex")})
-timestamp\t\t(4b : timestamp)\t=\t${this.timestamp.readUInt32LE()}\t(${this.timestamp.toString("hex")})
-symtable_ptr\t\t(4b : symtabptr)\t=\t${this.symtabptr.readUInt32LE()}\t\t(${this.symtabptr.toString("hex")})
-symbol_num\t\t(4b : symbnum)\t\t=\t${this.symbnum.readUInt32LE()}\t\t(${this.symbnum.toString("hex")})
-opt_hdr_size\t\t(2b : optionalsize)\t=\t${this.optionalsize.readUInt16LE()}\t\t(${this.optionalsize.toString("hex")})
-characteristics\t\t(2b : chrctrs)\t\t=\t${Object.keys(PEC.Hdr.Characteristics).filter(k => (this.chrctrs.readUInt16LE() & PEC.Hdr.Characteristics[k])).map(c => `${c}[${PEC.Hdr.Characteristics[c]}]`).join('|') || this.chrctrs.readUInt16LE()}\t(${this.chrctrs.toString("hex")})
-`,
-		opt = this.isopt ? `\t\x1b[4;1m${'-'.repeat(35)}    OPT     ${'-'.repeat(35)}\x1b[0m 
-opt_magic\t\t(2b : o_magic)\t\t=\t${this.isopt == 0x10b ? "PE" : (this.isopt == 0x20b ? "PE+" : (this.isopt == 0x107 ? "ROM" : this.isopt))}\t\t(${this.o_magic.toString("hex")})
-link_major\t\t(1b : o_major)\t\t=\t${this.o_major.readUInt8()}\t\t(${this.o_major.toString("hex")})
-link_minor\t\t(1b : o_minor)\t\t=\t${this.o_minor.readUInt8()}\t\t(${this.o_minor.toString("hex")})
-code_sz\t\t\t(4b : o_code_sz)\t=\t${this.o_code_sz.readUInt32LE()}\t\t(${this.o_code_sz.toString("hex")})
-initdat_sz\t\t(4b : o_initdat_sz)\t=\t${this.o_initdat_sz.readUInt32LE()}\t\t(${this.o_initdat_sz.toString("hex")})
-uninitdat_sz\t\t(4b : o_uninitdat_sz)\t=\t${this.o_uninitdat_sz.readUInt32LE()}\t\t(${this.o_uninitdat_sz.toString("hex")})
-entry\t\t\t(4b : o_entry)\t\t=\t${this.o_entry.readUInt32LE()}\t\t(${this.o_entry.toString("hex")})
-base\t\t\t(4b : o_base)\t\t=\t${this.o_base.readUInt32LE()}\t\t(${this.o_base.toString("hex")})
-section_alignment\t(4b : o_sectalign)\t=\t${this.o_sectalign.readUInt32LE()}\t\t(${this.o_sectalign.toString("hex")})
-file_alignment\t\t(4b : o_filealign)\t=\t${this.o_filealign.readUInt32LE()}\t\t(${this.o_filealign.toString("hex")})
-major_os_ver\t\t(2b : o_majosver)\t=\t${this.o_majosver.readUInt16LE()}\t\t(${this.o_majosver.toString("hex")})
-minor_os_ver\t\t(2b : o_minosver)\t=\t${this.o_minosver.readUInt16LE()}\t\t(${this.o_minosver.toString("hex")})
-major_img_ver\t\t(2b : o_majimver)\t=\t${this.o_majimver.readUInt16LE()}\t\t(${this.o_majimver.toString("hex")})
-minor_img_ver\t\t(2b : o_minimver)\t=\t${this.o_minimver.readUInt16LE()}\t\t(${this.o_minimver.toString("hex")})
-major_subs_ver\t\t(2b : o_majsubsver)\t=\t${this.o_majsubsver.readUInt16LE()}\t\t(${this.o_majsubsver.toString("hex")})
-minor_subs_ver\t\t(2b : o_minsubsver)\t=\t${this.o_minsubsver.readUInt16LE()}\t\t(${this.o_minsubsver.toString("hex")})
-win_32_res\t\t(4b : o_win32res)\t=\t${this.o_win32res.readUInt32LE()}\t\t(${this.o_win32res.toString("hex")})
-image_sz\t\t(4b : o_imgsz)\t\t=\t${this.o_imgsz.readUInt32LE()}\t\t(${this.o_imgsz.toString("hex")})
-headers_sz\t\t(4b : o_hdrsz)\t\t=\t${this.o_hdrsz.readUInt32LE()}\t\t(${this.o_hdrsz.toString("hex")})
-checksum\t\t(4b : o_chksum)\t\t=\t${this.o_chksum.readUInt32LE()}\t\t(${this.o_chksum.toString("hex")})
-subsystem\t\t(2b : o_subs)\t\t=\t${Object.keys(PEC.Hdr.Subsystem).find(k => this.o_subs.readUInt16LE() == PEC.Hdr.Subsystem[k]) || this.o_subs.readUInt16LE()}\t(${this.o_subs.toString("hex")})
-dll_characteristics\t(2b : o_dllchrctrs)\t=\t${Object.keys(PEC.Hdr.DLLCharacteristics).filter(k => (this.o_dllchrctrs.readUInt16LE() & PEC.Hdr.DLLCharacteristics[k])).map(c => `${c}[${PEC.Hdr.DLLCharacteristics[c]}]`).join('|') || this.o_dllchrctrs.readUInt16LE()}\t(${this.o_dllchrctrs.toString("hex")})
-loader_flags\t\t(4b : o_ldflag)\t\t=\t${this.o_ldflag.readUInt32LE()}\t\t(${this.o_ldflag.toString("hex")})
-rvas_szs\t\t(4b : o_rva_sz)\t\t=\t${this.o_rva_sz.readUInt32LE()}\t\t(${this.o_rva_sz.toString("hex")})
-` : "",
-		pe_ = this.isopt != 0x20b ?`database\t\t(4b : o_database)\t=\t${this.o_database.readUInt32LE()}\t\t(${this.o_database.toString("hex")})
-imagebase\t\t(4b : o_imbase)\t=\t${this.o_imbase.readUInt32LE()}\t\t(${this.o_imbase.toString("hex")})
-stack_reserve\t\t(4b : o_stackres)\t=\t${this.o_stackres.readUInt32LE()}\t\t(${this.o_stackres.toString("hex")})
-stack_commit\t\t(4b : o_stackcomm)\t=\t${this.o_stackcomm.readUInt32LE()}\t\t(${this.o_stackcomm.toString("hex")})
-heap_reserve\t\t(4b : o_heapres)\t=\t${this.o_heapres.readUInt32LE()}\t\t(${this.o_heapres.toString("hex")})
-heap_commit\t\t(4b : o_heapcomm)\t=\t${this.o_heapcomm.readUInt32LE()}\t\t(${this.o_heapcomm.toString("hex")})
-` : "",
-		pe_p = this.isopt == 0x20b ? `imagebase\t\t(8b : o_imbase)\t\t=\t${this.o_imbase.readBigUInt64LE()}\t\t(${this.o_imbase.toString("hex")})
-stack_reserve\t\t(8b : o_stackres)\t=\t${this.o_stackres.readBigUInt64LE()}\t\t(${this.o_stackres.toString("hex")})
-stack_commit\t\t(8b : o_stackcomm)\t=\t${this.o_stackcomm.readBigUInt64LE()}\t\t(${this.o_stackcomm.toString("hex")})
-heap_reserve\t\t(8b : o_heapres)\t=\t${this.o_heapres.readBigUInt64LE()}\t\t(${this.o_heapres.toString("hex")})
-heap_commit\t\t(8b : o_heapcomm)\t=\t${this.o_heapcomm.readBigUInt64LE()}\t\t(${this.o_heapcomm.toString("hex")})
-` : "",
-		rva = this.isopt ? `\t\x1b[4;1m${'-'.repeat(35)}  RVAs (${this.o_rva_sz.readUInt32LE()})  ${'-'.repeat(35)}\x1b[0m 
-\tIndex|Sector:\tAddress\t\t\t(Size)
-${this.o_rvas.cleaned.map(rv => `${rv.idx}|${Object.keys(PEC.Hdr.Datadir).find(k => PEC.Hdr.Datadir[k] == rv.idx)}:\t${rv.addr}|${this.o_rvas[rv.idx].addr.toString("hex")}\t(${rv.size}|${this.o_rvas[rv.idx].size.toString("hex")})`).join(os.EOL)}${os.EOL}` : "",
-		sects = `\t\x1b[4;1m${'-'.repeat(35)}    SECT    ${'-'.repeat(35)}\x1b[0m 
-${this.sects.map(s => s.str).join(os.EOL)}`;
+			pe = this.isimg ? `\t\x1b[4;1m${'-'.repeat(35)} MSDOS STUB ${'-'.repeat(35)}\x1b[0m ${os.EOL}
+pe_magic              \t(2b : e_magic)       \t=\t${pad(this.e_magic.toString("binary").replace(/\u0000/g, ''), 11, ' ', true)}\t(${this.e_magic.toString("hex")})
+bytes_last_page       \t(2b : e_cblp)        \t=\t${pad(this.e_cblp.readUInt16LE(), 11, ' ', true)}\t(${this.e_cblp.toString("hex")})
+pages                 \t(2b : e_cp)          \t=\t${pad(this.e_cp.readUInt16LE(), 11, ' ', true)}\t(${this.e_cp.toString("hex")})
+relocs                \t(2b : e_crlc)        \t=\t${pad(this.e_crlc.readUInt16LE(), 11, ' ', true)}\t(${this.e_crlc.toString("hex")})
+header_size_paragraphs\t(2b : e_cparhdr)     \t=\t${pad(this.e_cparhdr.readUInt16LE(), 11, ' ', true)}\t(${this.e_cparhdr.toString("hex")})
+min_extra_paragraphs  \t(2b : e_minalloc)    \t=\t${pad(this.e_minalloc.readUInt16LE(), 11, ' ', true)}\t(${this.e_minalloc.toString("hex")})
+max_extra_paragraphs  \t(2b : e_maxalloc)    \t=\t${pad(this.e_maxalloc.readUInt16LE(), 11, ' ', true)}\t(${this.e_maxalloc.toString("hex")})
+rel_stack_seg         \t(2b : e_ss)          \t=\t${pad(this.e_ss.readUInt16LE(), 11, ' ', true)}\t(${this.e_ss.toString("hex")})
+init_stack_ptr        \t(2b : e_sp)          \t=\t${pad(this.e_sp.readUInt16LE(), 11, ' ', true)}\t(${this.e_sp.toString("hex")})
+pe_checksum           \t(2b : e_csum)        \t=\t${pad(this.e_csum.readUInt16LE(), 11, ' ', true)}\t(${this.e_csum.toString("hex")})
+init_instr_ptr        \t(2b : e_ip)          \t=\t${pad(this.e_ip.readUInt16LE(), 11, ' ', true)}\t(${this.e_ip.toString("hex")})
+rel_cs_addr           \t(2b : e_cs)          \t=\t${pad(this.e_cs.readUInt16LE(), 11, ' ', true)}\t(${this.e_cs.toString("hex")})
+reloctable_addr       \t(2b : e_lfarlc)      \t=\t${pad(this.e_lfarlc.readUInt16LE(), 11, ' ', true)}\t(${this.e_lfarlc.toString("hex")})
+overlay_num           \t(2b : e_ovno)        \t=\t${pad(this.e_ovno.readUInt16LE(), 11, ' ', true)}\t(${this.e_ovno.toString("hex")})
+reserve1              \t(8b : e_res)         \t=\t${pad(this.e_res.toString("hex"), 11, ' ', false)}
+oem_id                \t(2b : e_oemid)       \t=\t${pad(this.e_oemid.readUInt16LE(), 11, ' ', true)}\t(${this.e_oemid.toString("hex")})
+oem_info              \t(2b : e_oeminfo)     \t=\t${pad(this.e_oeminfo.readUInt16LE(), 11, ' ', true)}\t(${this.e_oeminfo.toString("hex")})
+reserve2              \t(20b: e_res2)        \t=\t${pad(this.e_res2.toString("hex"), 11, ' ', false)}
+pe_addr               \t(4b : e_lfanew)      \t=\t${pad(this.e_lfanew.readUInt32LE(), 11, ' ', true)}\t(${this.e_lfanew.toString("hex")})
+pe_sig                \t(4b : sig)           \t=\t${pad(this.e_sig.toString("binary").replace(/\u0000/g, ''), 11, ' ', true)}\t(${this.e_sig.toString("hex")})
+${os.EOL}` : "",
+		coff = `\t\x1b[4;1m${pad(pad("    COFF    ", 47, '-', false), 82, '-', true)}\x1b[0m ${os.EOL}
+machine               \t(2b : machine)       \t=\t${pad((Object.keys(PEC.Hdr.Machine).find(k => PEC.Hdr.Machine[k] == this.machine.readUInt16LE()) || this.machine.readUInt16LE()).toString().replace(/\u0000/g, ''), 11, ' ', true)}\t(${this.machine.toString("hex")})
+sector_num            \t(2b : sectnum)       \t=\t${pad(this.sectnum.readUInt16LE(), 11, ' ', true)}\t(${this.sectnum.toString("hex")})
+timestamp             \t(4b : timestamp)     \t=\t${pad(this.timestamp.readUInt32LE(), 11, ' ', true)}\t(${this.timestamp.toString("hex")})
+symtable_ptr          \t(4b : symtabptr)     \t=\t${pad(this.symtabptr.readUInt32LE(), 11, ' ', true)}\t(${this.symtabptr.toString("hex")})
+symbol_num            \t(4b : symbnum)       \t=\t${pad(this.symbnum.readUInt32LE(), 11, ' ', true)}\t(${this.symbnum.toString("hex")})
+opt_hdr_size          \t(2b : optionalsize)  \t=\t${pad(this.optionalsize.readUInt16LE(), 11, ' ', true)}\t(${this.optionalsize.toString("hex")})
+characteristics       \t(2b : chrctrs)       \t=\t${Object.keys(PEC.Hdr.Characteristics).filter(k => (this.chrctrs.readUInt16LE() & PEC.Hdr.Characteristics[k])).map(c => `${c}[${PEC.Hdr.Characteristics[c]}]`).join('|') || this.chrctrs.readUInt16LE()}\t(${this.chrctrs.toString("hex")})
+${os.EOL}`,
+		opt = this.isopt ? `\t\x1b[4;1m${pad(pad("    OPT     ", 47, '-', false), 82, '-', true)}\x1b[0m ${os.EOL}
+opt_magic             \t(2b : o_magic)       \t=\t${pad(this.isopt == 0x10b ? "PE" : (this.isopt == 0x20b ? "PE+" : (this.isopt == 0x107 ? "ROM" : this.isopt)), 11, ' ', true)}\t\t(${this.o_magic.toString("hex")})
+link_major            \t(1b : o_major)       \t=\t${pad(this.o_major.readUInt8(), 11, ' ', true)}\t(${this.o_major.toString("hex")})
+link_minor            \t(1b : o_minor)       \t=\t${pad(this.o_minor.readUInt8(), 11, ' ', true)}\t(${this.o_minor.toString("hex")})
+code_sz               \t(4b : o_code_sz)     \t=\t${pad(this.o_code_sz.readUInt32LE(), 11, ' ', true)}\t(${this.o_code_sz.toString("hex")})
+initdat_sz            \t(4b : o_initdat_sz)  \t=\t${pad(this.o_initdat_sz.readUInt32LE(), 11, ' ', true)}\t(${this.o_initdat_sz.toString("hex")})
+uninitdat_sz          \t(4b : o_uninitdat_sz)\t=\t${pad(this.o_uninitdat_sz.readUInt32LE(), 11, ' ', true)}\t(${this.o_uninitdat_sz.toString("hex")})
+entry                 \t(4b : o_entry)       \t=\t${pad(this.o_entry.readUInt32LE(), 11, ' ', true)}\t(${this.o_entry.toString("hex")})
+base                  \t(4b : o_base)        \t=\t${pad(this.o_base.readUInt32LE(), 11, ' ', true)}\t(${this.o_base.toString("hex")})
+section_alignment     \t(4b : o_sectalign)   \t=\t${pad(this.o_sectalign.readUInt32LE(), 11, ' ', true)}\t(${this.o_sectalign.toString("hex")})
+file_alignment        \t(4b : o_filealign)   \t=\t${pad(this.o_filealign.readUInt32LE(), 11, ' ', true)}\t(${this.o_filealign.toString("hex")})
+major_os_ver          \t(2b : o_majosver)    \t=\t${pad(this.o_majosver.readUInt16LE(), 11, ' ', true)}\t(${this.o_majosver.toString("hex")})
+minor_os_ver          \t(2b : o_minosver)    \t=\t${pad(this.o_minosver.readUInt16LE(), 11, ' ', true)}\t(${this.o_minosver.toString("hex")})
+major_img_ver         \t(2b : o_majimver)    \t=\t${pad(this.o_majimver.readUInt16LE(), 11, ' ', true)}\t(${this.o_majimver.toString("hex")})
+minor_img_ver         \t(2b : o_minimver)    \t=\t${pad(this.o_minimver.readUInt16LE(), 11, ' ', true)}\t(${this.o_minimver.toString("hex")})
+major_subs_ver        \t(2b : o_majsubsver)  \t=\t${pad(this.o_majsubsver.readUInt16LE(), 11, ' ', true)}\t(${this.o_majsubsver.toString("hex")})
+minor_subs_ver        \t(2b : o_minsubsver)  \t=\t${pad(this.o_minsubsver.readUInt16LE(), 11, ' ', true)}\t(${this.o_minsubsver.toString("hex")})
+win_32_res            \t(4b : o_win32res)    \t=\t${pad(this.o_win32res.readUInt32LE(), 11, ' ', true)}\t(${this.o_win32res.toString("hex")})
+image_sz              \t(4b : o_imgsz)       \t=\t${pad(this.o_imgsz.readUInt32LE(), 11, ' ', true)}\t(${this.o_imgsz.toString("hex")})
+headers_sz            \t(4b : o_hdrsz)       \t=\t${pad(this.o_hdrsz.readUInt32LE(), 11, ' ', true)}\t(${this.o_hdrsz.toString("hex")})
+checksum              \t(4b : o_chksum)      \t=\t${pad(this.o_chksum.readUInt32LE(), 11, ' ', true)}\t(${this.o_chksum.toString("hex")})
+subsystem             \t(2b : o_subs)        \t=\t${pad((Object.keys(PEC.Hdr.Subsystem).find(k => this.o_subs.readUInt16LE() == PEC.Hdr.Subsystem[k]) || this.o_subs.readUInt16LE()).toString().replace(/\u0000/g, ''), 11, ' ', true)}\t(${this.o_subs.toString("hex")})
+dll_characteristics   \t(2b : o_dllchrctrs)  \t=\t${Object.keys(PEC.Hdr.DLLCharacteristics).filter(k => (this.o_dllchrctrs.readUInt16LE() & PEC.Hdr.DLLCharacteristics[k])).map(c => `${c}[${PEC.Hdr.DLLCharacteristics[c]}]`).join('|') || this.o_dllchrctrs.readUInt16LE()}\t(${this.o_dllchrctrs.toString("hex")})
+loader_flags          \t(4b : o_ldflag)      \t=\t${pad(this.o_ldflag.readUInt32LE(), 11, ' ', true)}\t(${this.o_ldflag.toString("hex")})
+rvas_szs              \t(4b : o_rva_sz)      \t=\t${pad(this.o_rva_sz.readUInt32LE(), 11, ' ', true)}\t(${this.o_rva_sz.toString("hex")})
+${os.EOL}` : "",
+		pe_ = this.isopt != 0x20b ?`database              \t(4b : o_database)    \t=\t${pad(this.o_database.readUInt32LE(), 11, ' ', true)}\t(${this.o_database.toString("hex")})
+imagebase             \t(4b : o_imbase)      \t=\t${pad(this.o_imbase.readUInt32LE(), 11, ' ', true)}\t(${this.o_imbase.toString("hex")})
+stack_reserve         \t(4b : o_stackres)    \t=\t${pad(this.o_stackres.readUInt32LE(), 11, ' ', true)}\t(${this.o_stackres.toString("hex")})
+stack_commit          \t(4b : o_stackcomm)   \t=\t${pad(this.o_stackcomm.readUInt32LE(), 11, ' ', true)}\t(${this.o_stackcomm.toString("hex")})
+heap_reserve          \t(4b : o_heapres)     \t=\t${pad(this.o_heapres.readUInt32LE(), 11, ' ', true)}\t(${this.o_heapres.toString("hex")})
+heap_commit           \t(4b : o_heapcomm)    \t=\t${pad(this.o_heapcomm.readUInt32LE(), 11, ' ', true)}\t(${this.o_heapcomm.toString("hex")})
+${os.EOL}` : "",
+		pe_p = this.isopt == 0x20b ? `imagebase             \t(8b : o_imbase)      \t=\t${pad(this.o_imbase.readBigUInt64LE(), 11, ' ', true)}\t(${this.o_imbase.toString("hex")})
+stack_reserve         \t(8b : o_stackres)    \t=\t${pad(this.o_stackres.readBigUInt64LE(), 11, ' ', true)}\t(${this.o_stackres.toString("hex")})
+stack_commit          \t(8b : o_stackcomm)   \t=\t${pad(this.o_stackcomm.readBigUInt64LE(), 11, ' ', true)}\t(${this.o_stackcomm.toString("hex")})
+heap_reserve          \t(8b : o_heapres)     \t=\t${pad(this.o_heapres.readBigUInt64LE(), 11, ' ', true)}\t(${this.o_heapres.toString("hex")})
+heap_commit           \t(8b : o_heapcomm)    \t=\t${pad(this.o_heapcomm.readBigUInt64LE(), 11, ' ', true)}\t(${this.o_heapcomm.toString("hex")})
+${os.EOL}` : "",
+		rva = this.isopt ? `\t\x1b[4;1m${pad(pad(" RVAs (" + this.o_rva_sz.readUInt32LE() + ") ", 47, '-', false), 82, '-', true)}\x1b[0m ${os.EOL}
+\x1b[3mIndex|Sector:\tAddress\t\t\t(Size)\x1b[0m ${os.EOL}
+${this.o_rvas.cleaned.map(rv => rv.self.str).join(os.EOL)}
+${os.EOL}` : "",
+		sects = `\t\x1b[4;1m${pad(pad("    SECT    ", 47, '-', false), 82, '-', true)}\x1b[0m ${os.EOL}
+${this.sects.map(s => s.str).join(os.EOL)}
+${os.EOL}`;
 		
 		return head + pe + coff + opt + pe_ + pe_p + rva + sects;
 	} //toString
@@ -520,9 +533,25 @@ class RVA {
 		return {
 			addr: (this.addr || Buffer.from("00000000", "hex")).readUInt32LE(),
 			size: (this.size || Buffer.from("00000000", "hex")).readUInt32LE(),
-			idx: this.rvaidx
+			idx: this.rvaidx,
+			self: this
 		};
 	} //parsed
+	
+	get str() {
+		const par = this.parsed;
+		
+		return `${par.idx}|${Object.keys(PEC.Hdr.Datadir).find(k => PEC.Hdr.Datadir[k] == par.idx)}:\t${pad(par.addr, 10, ' ', true)}|${this.addr.toString("hex")}\t(${par.size}|${this.size.toString("hex")})`;
+	} //str
+	
+	[Symbol.toPrimitive](hint) {
+		if (hint == "string") return this.str;
+		else return this;
+	}
+	
+	toString() {
+		return this.str;
+	} //toString
 	
 } //RVA
 class Sect {
@@ -557,12 +586,21 @@ class Sect {
 		const par = this.parsed;
 		
 		return `${par.name}:
-\taddr:\t\t\t${par.virtaddr}\t\t|\tsz:     ${par.virtsize}
-\tdata:\t\t\t${par.rawdatptr}\t\t|\tinitsz: ${par.rawdatsz}
-\trelocs:\t\t\t${par.relocptr}\t\t|\tnum:    ${par.relocnum}
-\tlines:\t\t\t${par.linenoptr}\t\t|\tnum:    ${par.linenonum}
+\taddr:           \t${par.virtaddr}\t\t|\tsz:     ${par.virtsize}
+\tdata:           \t${par.rawdatptr}\t\t|\tinitsz: ${par.rawdatsz}
+\trelocs:         \t${par.relocptr}\t\t|\tnum:    ${par.relocnum}
+\tlines:          \t${par.linenoptr}\t\t|\tnum:    ${par.linenonum}
 \tcharacteristics:\t${Object.keys(PEC.Hdr.SectCharacteristics).filter(c => (par.chrctrs & PEC.Hdr.SectCharacteristics[c])).map(k => `${k}[${PEC.Hdr.SectCharacteristics[k]}]`).join('|')}\t\t(${par.chrctrs})${os.EOL}`;
 	} //str
+	
+	[Symbol.toPrimitive](hint) {
+		if (hint == "string") return this.str;
+		else return this;
+	}
+	
+	toString() {
+		return this.str;
+	} //toString
 	
 } //Sect
 
