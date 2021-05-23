@@ -67,10 +67,12 @@ class PEC {
 		if (this.innerbuf.length < 20) return "Binary does not have valid length" + os.EOL;
 		else if (this.hdr.isimg && this.innerbuf.length < 148) return "Binary (Img) does not have valid length" + os.EOL;
 		
+		if (this.hdr.isimg && !this.hdr.isopt)
+			return "Images need to define the Optional Header" + os.EOL;
 		if (this.hdr.isopt == 0x10b && this.hdr.optionalsize.readUInt16LE() < 96)
-			retstr += "OPT size (optionalsize) broken" + os.EOL;
+			return "OPT size (optionalsize) broken" + os.EOL;
 		else if (this.hdr.isopt == 0x20b && this.hdr.optionalsize.readUInt16LE() < 112)
-			retstr += "OPT+ size (optionalsize) broken" + os.EOL;
+			return "OPT+ size (optionalsize) broken" + os.EOL;
 		if (this.hdr.isopt && this.hdr.o_rva_sz.readUInt32LE() % 8)
 			retstr += "RVA number should be a multiple of 8" + os.EOL;
 		
@@ -104,6 +106,16 @@ class PEC {
 			retstr += "Image Base (o_imbase) must be multiple of 64KB" + os.EOL;
 		if (!this.hdr.isimg && this.hdr.optionalsize.readUInt16LE())
 			retstr += "Optional header (optionalsize != 0) invalid on object files" + os.EOL;
+		if (this.hdr.isimg && this.hdr.sects.some(s => s.name.toString("binary").startsWith('/')))
+			retstr += "Images cannot have string references at Sections (sects)" + os.EOL;
+		if (this.hdr.isimg && this.hdr.sects.some(s => s.rawdatptr.readUInt32LE() % this.hdr.o_filealign))
+			retstr += "Image raw data pointers (rawdatptr) should be multiples of File Alignment (o_filealign)" + os.EOL;
+		else if (this.hdr.sects.some(s => s.rawdatptr.readUInt32LE() % 4))
+			retstr += "Object raw data pointers (rawdatptr) should be multiples of 4B" + os.EOL;
+		if (this.hdr.isimg && this.hdr.sects.some(s => s.relocptr.readUInt32LE() || s.relocnum.readUInt16LE()))
+			retstr += "Image relocations (relocptr/relocnum) should be zero" + os.EOL;
+		if (this.hdr.isimg && this.hdr.sects.some(s => s.linenonum.readUInt16LE() || s.linenoptr.readUInt32LE()))
+			retstr += "Image lines (linenonum/linenoptr) are deprecated" + os.EOL;
 		
 		//opt
 		
@@ -264,7 +276,7 @@ class PEC {
 			i += d;
 			
 			// 224/240 B
-		} else if (this.hdr.optionalsize.readUInt16LE()) {
+		} else if ((this.isimg && !this.isopt) || optsz) {
 			this.err = this.isValid();
 			
 			return this.hdr;
