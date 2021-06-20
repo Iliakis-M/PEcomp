@@ -1,8 +1,13 @@
 "use strict";
 
+/**
+ * @todo https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#grouped-sections-object-only
+ */
+
 const fs = require("fs").promises,
 	assert = require("assert").strict,
-	os = require("os");
+	os = require("os"),
+	dbg = require("util").debuglog("PE");
 
 function pad(str = "", min = 1, by = ' ', post = true) {
 	str = (str !== undefined ? str : "") + '';
@@ -15,14 +20,14 @@ function pad(str = "", min = 1, by = ' ', post = true) {
 	return str;
 } //pad
 
-/**
- * TODO:
- * 	* Trim MSDosStub
- */
+dbg("Loading...");
 
 class PEC {
 	
 	innerbuf = null;
+	/**
+	 * @type Hdr
+	 */
 	hdr = null;
 	err = "";
 	
@@ -71,6 +76,8 @@ class PEC {
 	isValid() {
 		let retstr = "";
 		
+		dbg("Validity Check");
+		
 		assert(this.hdr, "Stub needs to be created first, load a file.");
 		
 		//sizecheck/always
@@ -88,9 +95,11 @@ class PEC {
 			retstr += "RVA number should be a multiple of 8" + os.EOL;
 		
 		if (this.hdr.sectnum.readUInt16LE() < 2)
-			retstr +=  "Sections must be at least 2" + os.EOL;
+			retstr += "Sections must be at least 2" + os.EOL;
 		else if (this.hdr.sectnum.readUInt16LE() > 96)
-			retstr +=  "Sections must be at most 96" + os.EOL;
+			retstr += "Sections must be at most 96" + os.EOL;
+		
+		//chrctrs
 		
 		if ((this.hdr.chrctrs.readUInt16LE() & PEC.Hdr.Characteristics.LINE_NUMS_STRIPPED) == PEC.Hdr.Characteristics.LINE_NUMS_STRIPPED)
 			retstr += "The LINE_NUMS_STRIPPED Characteristic (chrctrs) is deprecated" + os.EOL;
@@ -117,16 +126,73 @@ class PEC {
 			retstr += "Image Base (o_imbase) must be multiple of 64KB" + os.EOL;
 		if (!this.hdr.isimg && this.hdr.optionalsize.readUInt16LE())
 			retstr += "Optional header (optionalsize != 0) invalid on object files" + os.EOL;
-		if (this.hdr.isimg && this.hdr.sects.some(s => s.name.toString("binary").startsWith('/')))
-			retstr += "Images cannot have string references at Sections (sects)" + os.EOL;
-		if (this.hdr.isimg && this.hdr.sects.some(s => s.rawdatptr.readUInt32LE() % this.hdr.o_filealign))
-			retstr += "Image raw data pointers (rawdatptr) should be multiples of File Alignment (o_filealign)" + os.EOL;
-		else if (this.hdr.sects.some(s => s.rawdatptr.readUInt32LE() % 4))
-			retstr += "Object raw data pointers (rawdatptr) should be multiples of 4B" + os.EOL;
-		if (this.hdr.isimg && this.hdr.sects.some(s => s.relocptr.readUInt32LE() || s.relocnum.readUInt16LE()))
-			retstr += "Image relocations (relocptr/relocnum) should be zero" + os.EOL;
-		if (this.hdr.isimg && this.hdr.sects.some(s => s.linenonum.readUInt16LE() || s.linenoptr.readUInt32LE()))
-			retstr += "Image lines (linenonum/linenoptr) are deprecated" + os.EOL;
+		
+		//sect
+		
+		for (const s of this.hdr.sects) {
+			const sectname = s.name.toString("binary");
+			
+			if (this.hdr.isimg && sectname.startsWith('/'))
+				retstr += `Images cannot have string references at Sections (sects)[${sectname}]` + os.EOL;
+			if (this.hdr.isimg && sectname.includes('$'))
+				retstr += `Section ${sectname} cannot have a dollar ($) notation since the binary is an Image` + os.EOL;
+			if (this.hdr.isimg && s.rawdatptr.readUInt32LE() % this.hdr.o_filealign)
+				retstr += `Section ${sectname} raw data pointers (rawdatptr) should be multiples of File Alignment (o_filealign) for Images` + os.EOL;
+			else if (s.rawdatptr.readUInt32LE() % 4)
+				retstr += `Section ${sectname} raw data pointers (rawdatptr) should be multiples of 4B for Objects` + os.EOL;
+			if (this.hdr.isimg && (s.relocptr.readUInt32LE() || s.relocnum.readUInt16LE()))
+				retstr += `Section ${sectname} relocations (relocptr/relocnum) should be zero for Images` + os.EOL;
+			if (this.hdr.isimg && (s.linenonum.readUInt16LE() || s.linenoptr.readUInt32LE()))
+				retstr += `Section ${sectname} lines (linenonum/linenoptr) are deprecated for Images` + os.EOL;
+			
+			//sect chrctrs
+			
+			if (this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.TYPE_NO_PAD))
+				retstr += `Section ${s.name.toString("binary")} Characteristic TYPE_NO_PAD is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.LNK_INFO))
+				retstr += `Section ${s.name.toString("binary")} Characteristic LNK_INFO is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.LNK_REMOVE))
+				retstr += `Section ${s.name.toString("binary")} Characteristic LNK_REMOVE is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.LNK_COMDAT))
+				retstr += `Section ${s.name.toString("binary")} Characteristic LNK_COMDAT is invalid for Images` + os.EOL;
+			
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_1BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_1BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_2BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_2BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_4BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_4BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_8BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_8BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_16BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_16BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_32BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_32BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_64BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_64BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_128BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_128BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_256BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_256BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_512BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_512BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_1024BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_1024BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_2048BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_2048BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_4096BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_4096BYTES is invalid for Images` + os.EOL;
+			if (!this.hdr.isimg && (s.chrctrs & PEC.Hdr.SectCharacteristics.ALIGN_8192BYTES))
+				retstr += `Section ${s.name.toString("binary")} Characteristic ALIGN_8192BYTES is invalid for Images` + os.EOL;
+			
+			/*
+LNK_NRELOC_OVFL indicates that the count of relocations for the section exceeds the 16 bits that are reserved for it in the section header.
+If the bit is set and the NumberOfRelocations field in the section header is 0xffff, the actual relocation count is stored in the 32-bit VirtualAddress field of the first relocation.
+It is an error if IMAGE_SCN_LNK_NRELOC_OVFL is set and there are fewer than 0xffff relocations in the section.
+			*/
+			
+			//+ lookup '/'name from strings table
+		}
 		
 		//opt
 		
@@ -157,6 +223,8 @@ class PEC {
 	
 	parseStub() {
 		var i = 0;
+		
+		dbg("Parse");
 		
 		if (!this.hdr) this.hdr = PEC.Hdr.init();
 		
@@ -287,7 +355,7 @@ class PEC {
 			i += d;
 			
 			// 224/240 B
-		} else if ((this.isimg && !this.isopt) || optsz) {
+		} else if (this.isimg && !this.isopt) {
 			this.err = this.isValid();
 			
 			return this.hdr;
@@ -305,16 +373,16 @@ class PEC {
 		
 		for (let secnd = 0; secnd < sectsnum; secnd += 40) {
 			const flds = new Sect({
-				name:		this.innerbuf.slice(i, i += 8),	// 						// 
-				virtsize :	this.innerbuf.slice(i, i += 4),	// 						// 
-				virtaddr:	this.innerbuf.slice(i, i += 4),	// 						// 
-				rawdatsz:	this.innerbuf.slice(i, i += 4),	// 						// 
-				rawdatptr:	this.innerbuf.slice(i, i += 4),	// 						// 
-				relocptr:	this.innerbuf.slice(i, i += 4),	// 						// 
-				linenoptr:	this.innerbuf.slice(i, i += 4),	// 						// 
-				relocnum:	this.innerbuf.slice(i, i += 2),	// 						// 
-				linenonum:	this.innerbuf.slice(i, i += 2),	// 						// 
-				chrctrs:	this.innerbuf.slice(i, i += 4),	// 						// 
+				name:		this.innerbuf.slice(i, i += 8),	// 						// An 8-byte, null-padded UTF-8 encoded string. If the string is exactly 8 characters long, there is no terminating null. For longer names, this field contains a slash (/) that is followed by an ASCII representation of a decimal number that is an offset into the string table. Executable images do not use a string table and do not support section names longer than 8 characters. Long names in object files are truncated if they are emitted to an executable file.
+				virtsize :	this.innerbuf.slice(i, i += 4),	// 						// The total size of the section when loaded into memory. If this value is greater than SizeOfRawData, the section is zero-padded. This field is valid only for executable images and should be set to zero for object files.
+				virtaddr:	this.innerbuf.slice(i, i += 4),	// 						// For executable images, the address of the first byte of the section relative to the image base when the section is loaded into memory. For object files, this field is the address of the first byte before relocation is applied; for simplicity, compilers should set this to zero. Otherwise, it is an arbitrary value that is subtracted from offsets during relocation.
+				rawdatsz:	this.innerbuf.slice(i, i += 4),	// 						// The size of the section (for object files) or the size of the initialized data on disk (for image files). For executable images, this must be a multiple of FileAlignment from the optional header. If this is less than VirtualSize, the remainder of the section is zero-filled. Because the SizeOfRawData field is rounded but the VirtualSize field is not, it is possible for SizeOfRawData to be greater than VirtualSize as well. When a section contains only uninitialized data, this field should be zero.
+				rawdatptr:	this.innerbuf.slice(i, i += 4),	// 						// The file pointer to the first page of the section within the COFF file. For executable images, this must be a multiple of FileAlignment from the optional header. For object files, the value should be aligned on a 4-byte boundary for best performance. When a section contains only uninitialized data, this field should be zero.
+				relocptr:	this.innerbuf.slice(i, i += 4),	// 						// The file pointer to the beginning of relocation entries for the section. This is set to zero for executable images or if there are no relocations.
+				linenoptr:	this.innerbuf.slice(i, i += 4),	// 						// The file pointer to the beginning of line-number entries for the section. This is set to zero if there are no COFF line numbers. This value should be zero for an image because COFF debugging information is deprecated.
+				relocnum:	this.innerbuf.slice(i, i += 2),	// 						// The number of relocation entries for the section. This is set to zero for executable images.
+				linenonum:	this.innerbuf.slice(i, i += 2),	// 						// The number of line-number entries for the section. This value should be zero for an image because COFF debugging information is deprecated.
+				chrctrs:	this.innerbuf.slice(i, i += 4),	// 						// The flags that describe the characteristics of the section.
 			});
 			
 			this.hdr.sects.push(flds);
@@ -382,7 +450,14 @@ class Hdr {
 	o_dllchrctrs = null; o_stackres = null;
 	o_stackcomm = null; o_heapres = null;
 	o_heapcomm = null; o_ldflag = null;
-	o_rva_sz = null; o_rvas = null;
+	o_rva_sz = null;
+	/**
+	 * @type RVA[]
+	 */
+	o_rvas = [ ];
+	/**
+	 * @type Sect[]
+	 */
 	sects = [ ];
 	
 	constructor(...args) {
@@ -490,7 +565,7 @@ heap_reserve          \t(8b : o_heapres)     \t=\t${pad(this.o_heapres.readBigUI
 heap_commit           \t(8b : o_heapcomm)    \t=\t${pad(this.o_heapcomm.readBigUInt64LE(), 11, ' ', true)}\t(${this.o_heapcomm.toString("hex")})
 ${os.EOL}` : "",
 		rva = this.isopt ? `\t\x1b[4;1m${pad(pad(" RVAs (" + this.o_rva_sz.readUInt32LE() + ") ", 47, '-', false), 82, '-', true)}\x1b[0m ${os.EOL}
-\x1b[3mIndex|Sector:\tAddress\t\t\t(Size)\x1b[0m ${os.EOL}
+\x1b[3mIndex|Sector:\t\tAddress\t\t\t(Size)\x1b[0m ${os.EOL}
 ${this.o_rvas.cleaned.map(rv => rv.self.str).join(os.EOL)}
 ${os.EOL}` : "",
 		sects = `\t\x1b[4;1m${pad(pad("    SECT    ", 47, '-', false), 82, '-', true)}\x1b[0m ${os.EOL}
@@ -748,3 +823,5 @@ PEC.Hdr.SectCharacteristics = {
 };
 global.PEC = exports.PEC = PEC;
 global._pec = PEC.init(true);
+
+dbg("Loaded.");

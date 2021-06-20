@@ -4,7 +4,7 @@
   "description": "PE decomposer/composer",
   "main": "pecomp.js",
   "scripts": {
-    "test": "node test/index.js",
+    "test": "set NODE_DEBUG=PE&&node test/index.js",
     "start": "node -r ./pecomp.js"
   },
   "keywords": [

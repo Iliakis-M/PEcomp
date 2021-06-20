@@ -1,4 +1,4 @@
-const { PEC } = require("../pecomp");
+const { PEC } = require("../");
 
 PEC.read("src/HxD.exe").then(p => {
 	console.info(p.hdr.str);
